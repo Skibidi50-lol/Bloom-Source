@@ -688,7 +688,7 @@ local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 
-local Settings = PrisonAPI.SilentAim  -- Use your table directly
+local Settings = PrisonAPI.SilentAim
 
 local GunRemotes = ReplicatedStorage:WaitForChild("GunRemotes", 10)
 local ShootEvent = GunRemotes and GunRemotes:WaitForChild("ShootEvent", 10)
@@ -2168,7 +2168,7 @@ combatBox:AddButton({
     end
 })
 --silent aim
-local silentBox = Tabs.Rage:AddLeftGroupbox("Silent Aim", "skull")
+local silentBox = Tabs.Rage:AddLeftGroupbox("Silent Aim (PC)", "skull")
 silentBox:AddToggle("SAToggle", {
     Text = "Silent Aim",
     Default = false,
