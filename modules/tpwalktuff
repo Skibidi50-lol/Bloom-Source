@@ -1,0 +1,15 @@
+local RunService = game:GetService("RunService")
+
+RunService.RenderStepped:Connect(function()
+
+    local char = game.Players.LocalPlayer.Character
+	    local hum = char:FindFirstChild("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+
+    if not hum or not hrp then return end
+
+    local dir = hum.MoveDirection
+    if dir.Magnitude > 0 then
+        hrp.CFrame = hrp.CFrame + (dir * 1)
+    end
+end)
