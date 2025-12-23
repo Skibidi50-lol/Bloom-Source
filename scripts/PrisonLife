@@ -1261,8 +1261,8 @@ end)
 --chams shit
 local Chams = { 
     Enabled = false,
-    FillTrans = 0.6,
-    OutlineTrans = 0.1,
+    FillTrans = 0.5,
+    OutlineTrans = 0,
 }
 
 local Players = game:GetService("Players")
@@ -1271,8 +1271,8 @@ local RunService = game:GetService("RunService")
 
 local TEAM_COLORS = {
     ["Inmates"] = Color3.fromRGB(255, 165, 0),
-    ["Guards"] = Color3.fromRGB(0, 0, 255),
-    ["Criminals"] = Color3.fromRGB(255, 0, 0),
+    ["Guards"] = Color3.fromRGB(70, 70, 255),
+    ["Criminals"] = Color3.fromRGB(255, 70, 70),
 }
 
 local function removeHighlight(char)
@@ -1286,7 +1286,7 @@ local function createHighlight(char, color)
     local h = Instance.new("Highlight")
     h.Name = "TeamESP"
     h.Adornee = char
-    h.FillColor = color
+    h.FillColor = Color3.fromRGB(0, 0, 0)
     h.OutlineColor = color
     h.FillTransparency = Chams.FillTrans
     h.OutlineTransparency = Chams.OutlineTrans
@@ -1424,6 +1424,28 @@ end)
 
 RunService.Stepped:Connect(extend)
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local CharacterCollision = ReplicatedStorage.Scripts:FindFirstChild("CharacterCollision")
+
+if CharacterCollision then
+    CharacterCollision:Destroy()
+    local Head = LocalPlayer.Character.Head
+    for _, Connection in getconnections(Head:GetPropertyChangedSignal("CanCollide")) do
+        Connection:Disable()
+    end
+    game:GetService("StarterGui"):SetCore("SendNotification",{
+        Title = "Anti Anti Noclip",
+        Text = "Credit to Tomato ;)",
+        Duration = 4
+    })
+else
+    print("Already Bypassed or Failed.")
+end
+
+
 --main script
 local Window = Library:CreateWindow({
 	Title = "BloomWare | PL",
@@ -1440,7 +1462,7 @@ local Window = Library:CreateWindow({
 
 local Tabs = {
     Info = Window:AddTab("Information", "info"),
-    Weapons = Window:AddTab("Weapons", "sword"),
+    Weapons = Window:AddTab("Weapons", "swords"),
     Main = Window:AddTab("Main", "target"),
     Rage = Window:AddTab("Rage", "skull"),
     Visual = Window:AddTab("Visuals", "wrench"),
@@ -1451,8 +1473,10 @@ local Tabs = {
 local infoBox = Tabs.Info:AddLeftGroupbox("Script Information", "info")
 
 infoBox:AddLabel("[<font color=\"rgb(73, 230, 133)\">Update Note</font>]")
-infoBox:AddLabel("Version Private")
-infoBox:AddLabel("[+] Rewrite Some Features")
+infoBox:AddDivider()
+infoBox:AddLabel("Update 1.1")
+infoBox:AddLabel("[+] Bypass Anti Noclip")
+infoBox:AddLabel("[+] Portal To Crims Base")
 --Weapons Sigma
 local weaponBox = Tabs.Weapons:AddLeftGroupbox("Weapons Giver", "sword")
 
@@ -2804,6 +2828,171 @@ tpWayPointBox:AddButton({
         RefreshWaypointDropdown()
 
         Library:Notify({Title = "Waypoints", Description = "Deleted: " .. selected, Time = 3})
+    end
+})
+
+local worldBox = Tabs.World:AddRightGroupbox("World", "eclipse")
+
+worldBox:AddButton({
+    Text = "Portal To Criminal Base",
+    Func = function()
+        local pl = game.Players.LocalPlayer
+        local p1 = Vector3.new(-955, 94, 2081)
+        local p2 = Vector3.new(997, 100, 2334)
+        local di = 2
+        local cd = false
+        local ct = 5
+
+        local ch
+        local hr
+
+        local function cp(po, co, ro)
+            local mo = Instance.new("Model")
+            mo.Name = "Portal"
+            mo.Parent = workspace
+            
+            local po_m = Instance.new("Part")
+            po_m.Name = "PortalMain"
+            po_m.Size = Vector3.new(6, 9, 0.3)
+            po_m.Position = po
+            po_m.Anchored = true
+            po_m.CanCollide = false
+            po_m.Transparency = 0.2
+            po_m.Material = Enum.Material.Neon
+            po_m.Color = co
+            po_m.Shape = Enum.PartType.Ball
+            
+            if ro then
+                po_m.CFrame = CFrame.new(po) * ro
+            end
+            
+            po_m.Parent = mo
+            
+            local function fr(si, of, fr_co)
+                local fr_p = Instance.new("Part")
+                fr_p.Size = si
+                fr_p.Anchored = true
+                fr_p.CanCollide = false
+                fr_p.Material = Enum.Material.SmoothPlastic
+                fr_p.Color = fr_co or Color3.fromRGB(40, 40, 40)
+                if ro then
+                    fr_p.CFrame = CFrame.new(po) * ro * CFrame.new(of)
+                else
+                    fr_p.CFrame = CFrame.new(po + of)
+                end
+                fr_p.Parent = mo
+                return fr_p
+            end
+            
+            fr(Vector3.new(7, 0.5, 0.5), Vector3.new(0, 4.75, 0))
+            fr(Vector3.new(7, 0.5, 0.5), Vector3.new(0, -4.75, 0))
+            fr(Vector3.new(0.5, 9.5, 0.5), Vector3.new(3.25, 0, 0))
+            fr(Vector3.new(0.5, 9.5, 0.5), Vector3.new(-3.25, 0, 0))
+            
+            local cs = Vector3.new(0.7, 0.7, 0.5)
+            fr(cs, Vector3.new(3.25, 4.75, 0))
+            fr(cs, Vector3.new(-3.25, 4.75, 0))
+            fr(cs, Vector3.new(3.25, -4.75, 0))
+            fr(cs, Vector3.new(-3.25, -4.75, 0))
+            
+            local bg = Instance.new("BodyGyro")
+            bg.MaxTorque = Vector3.new(0, 0, 0)
+            bg.Parent = po_m
+            
+            local pa = Instance.new("ParticleEmitter")
+            pa.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+            pa.Color = ColorSequence.new(co)
+            pa.LightEmission = 1
+            pa.Size = NumberSequence.new(0.3, 1.5)
+            pa.Transparency = NumberSequence.new(0.3, 1)
+            pa.Lifetime = NumberRange.new(0.5, 1.5)
+            pa.Rate = 100
+            pa.Speed = NumberRange.new(1, 3)
+            pa.SpreadAngle = Vector2.new(180, 180)
+            pa.Rotation = NumberRange.new(0, 360)
+            pa.RotSpeed = NumberRange.new(-50, 50)
+            pa.Parent = po_m
+            
+            local li = Instance.new("PointLight")
+            li.Brightness = 2
+            li.Color = co
+            li.Range = 20
+            li.Shadows = true
+            li.Parent = po_m
+            
+            return mo
+        end
+
+        local po1 = cp(p1, Color3.fromRGB(255, 100, 0), nil)
+        local po2 = cp(p2, Color3.fromRGB(0, 150, 255), CFrame.Angles(0, math.rad(90), 0))
+
+        local function tp(fr, to)
+            if not cd then
+                cd = true
+                
+                local so = Instance.new("Sound")
+                so.SoundId = "rbxassetid://4601466178"
+                so.Volume = 0.5
+                so.Parent = hr
+                so:Play()
+                
+                so.Ended:Connect(function()
+                    so:Destroy()
+                end)
+                
+                local ofs = to.CFrame.LookVector * 3
+                hr.CFrame = to.CFrame + ofs
+                
+                local fl = Instance.new("Part")
+                fl.Shape = Enum.PartType.Ball
+                fl.Size = Vector3.new(8, 8, 8)
+                fl.Position = to.Position
+                fl.Anchored = true
+                fl.CanCollide = false
+                fl.Material = Enum.Material.Neon
+                fl.Color = to.Color
+                fl.Transparency = 0.5
+                fl.Parent = workspace
+                
+                for i = 1, 10 do
+                    fl.Transparency = fl.Transparency + 0.05
+                    fl.Size = fl.Size + Vector3.new(0.5, 0.5, 0.5)
+                    wait(0.05)
+                end
+                fl:Destroy()
+                
+                wait(ct)
+                cd = false
+            end
+        end
+
+        local function ss(ne_ch)
+            ch = ne_ch
+            hr = ch:WaitForChild("HumanoidRootPart")
+        end
+
+        ss(pl.Character or pl.CharacterAdded:Wait())
+        pl.CharacterAdded:Connect(ss)
+
+        game:GetService("RunService").Heartbeat:Connect(function()
+            if hr and hr.Parent then
+                local p1m = po1:FindFirstChild("PortalMain")
+                local p2m = po2:FindFirstChild("PortalMain")
+                
+                if p1m and p2m then
+                    local d1 = (hr.Position - p1m.Position).Magnitude
+                    local d2 = (hr.Position - p2m.Position).Magnitude
+                    
+                    if d1 < di then
+                        tp(p1m, p2m)
+                    end
+                    
+                    if d2 < di then
+                        tp(p2m, p1m)
+                    end
+                end
+            end
+        end)
     end
 })
 
