@@ -1,6 +1,17 @@
+--[[
+    BloomWare v1.2 (Small Update Stuff)
+    Game: Prison Life
+    Status: STable / Maybe Detected
+    
+    Release Notes v1.2:
+    -FIX : Anti Taser is Now Fully Fixed
+    -FEATURES ADDED : Delete Doors
+]]
+
+
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
-local ThemeManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/Skibidi50-lol/me-obsidian-theme/refs/heads/main/ThemeManager2.lua"))()
+local ThemeManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/Skibidi50-lol/Bloom-Source/refs/heads/main/modules/agoons/obsidiantheme.lua"))()
 local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
 
 Library:Notify({
@@ -726,7 +737,7 @@ local function CreateVisuals()
     circleFrame.Visible = false
     circleFrame.Parent = sg
     local stroke = Instance.new("UIStroke")
-    stroke.Color = Color3.fromRGB(255, 0, 0)
+    stroke.Color = Color3.fromRGB(255, 255, 255)
     stroke.Thickness = 2
     stroke.Transparency = 0.3
     stroke.Parent = circleFrame
@@ -1449,7 +1460,7 @@ end
 --main script
 local Window = Library:CreateWindow({
 	Title = "BloomWare | PL",
-	Footer = "Private Version - All Executor Supported | ".. (identifyexecutor()),
+	Footer = "Offical Version - All Executor Supported | ".. (identifyexecutor()),
 	Icon = nil,
 	NotifySide = "Right",
 	ShowCustomCursor = true,
@@ -1474,9 +1485,9 @@ local infoBox = Tabs.Info:AddLeftGroupbox("Script Information", "info")
 
 infoBox:AddLabel("[<font color=\"rgb(73, 230, 133)\">Update Note</font>]")
 infoBox:AddDivider()
-infoBox:AddLabel("Update 1.1")
-infoBox:AddLabel("[+] Bypass Anti Noclip")
-infoBox:AddLabel("[+] Portal To Crims Base")
+infoBox:AddLabel("Update 1.2")
+infoBox:AddLabel("[+] Fixed Anti Tase")
+infoBox:AddLabel("[+] Delete Doors")
 --Weapons Sigma
 local weaponBox = Tabs.Weapons:AddLeftGroupbox("Weapons Giver", "sword")
 
@@ -1872,20 +1883,126 @@ combatBox:AddToggle("AutoTazeToggle", {
     Tooltip = "No Taser Anymore!!!"
 }):OnChanged(function(Value)
    PrisonAPI.AntiTaser = Value
-   task.spawn(function()
-            while PrisonAPI.AntiTaser do
-                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                    if LocalPlayer.Character.Humanoid.PlatformStand or LocalPlayer.Character.Humanoid.Sit then
-                        LocalPlayer.Character.Humanoid.PlatformStand = false
-                        LocalPlayer.Character.Humanoid.Sit = false
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local UIS = game:GetService("UserInputService")
+    local player = Players.LocalPlayer
+
+    local NORMAL_SPEED = 16
+    local SPRINT_SPEED = 26
+    local FORCED_JUMPPOWER = 50
+
+    local BLOCKED_ANIMS = {
+        ["287112271"] = true,
+        ["279229192"] = true
+    }
+
+
+    local shiftHeld = false
+    local lastPosition = nil
+    local connections = {}
+
+    UIS.InputBegan:Connect(function(input, gp)
+        if gp or not PrisonAPI.AntiTaser then return end
+        if input.KeyCode == Enum.KeyCode.LeftShift then
+            shiftHeld = true
+        end
+    end)
+
+    UIS.InputEnded:Connect(function(input)
+        if not PrisonAPI.AntiTaser then return end
+        if input.KeyCode == Enum.KeyCode.LeftShift then
+            shiftHeld = false
+        end
+    end)
+
+    local function stopBadAnimation(track)
+        if not enabled or not track or not track.Animation then return end
+        local id = tostring(track.Animation.AnimationId:match("%d+"))
+        if BLOCKED_ANIMS[id] then
+            pcall(function() track:Stop() end)
+        end
+    end
+
+    local function forceTeleport(root)
+        if not PrisonAPI.AntiTaser then return end
+        spawn(function()
+            for i = 1, 60 do
+                if root and root.Parent and lastPosition then
+                    local hum = root.Parent:FindFirstChildOfClass("Humanoid")
+                    if hum and hum.SeatPart then
+                        hum.Sit = false
                     end
-                    if LocalPlayer.Character:FindFirstChild("ClientInputHandler") then
-                        LocalPlayer.Character.ClientInputHandler.Disabled = false
-                    end
+                    pcall(function()
+                        root.CFrame = CFrame.new(lastPosition)
+                    end)
                 end
                 task.wait()
             end
         end)
+    end
+
+    local function setupCharacter(char)
+        if not char then return end
+        
+        local hum = char:WaitForChild("Humanoid")
+        local root = char:WaitForChild("HumanoidRootPart")
+        
+        -- Clean up old connections
+        for _, conn in pairs(connections) do
+            if conn.Connected then conn:Disconnect() end
+        end
+        table.clear(connections)
+        
+        if not PrisonAPI.AntiTaser then
+            -- When disabled, just reset to defaults and do nothing else
+            pcall(function()
+                hum.WalkSpeed = 16
+                hum.JumpPower = 50
+            end)
+            return
+        end
+        
+        -- Block unwanted animations
+        table.insert(connections, hum.AnimationPlayed:Connect(stopBadAnimation))
+        local animator = hum:FindFirstChildOfClass("Animator")
+        if animator then
+            for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                stopBadAnimation(track)
+            end
+        end
+        
+        -- Speed, jump power, and sprint control
+        table.insert(connections, RunService.Heartbeat:Connect(function()
+            if not hum.Parent or not PrisonAPI.AntiTaser then return end
+            pcall(function()
+                hum.UseJumpPower = true
+                hum.JumpPower = FORCED_JUMPPOWER
+                hum.AutoJumpEnabled = true
+                hum.WalkSpeed = shiftHeld and SPRINT_SPEED or NORMAL_SPEED
+            end)
+        end))
+        
+        -- Save death position
+        table.insert(connections, hum.Died:Connect(function()
+            if root then
+                lastPosition = root.Position
+            end
+        end))
+        
+        -- Anti-forcefield
+        forceTeleport(root)
+        table.insert(connections, char.ChildAdded:Connect(function(child)
+            if child:IsA("ForceField") then
+                forceTeleport(root)
+            end
+        end))
+    end
+
+    player.CharacterAdded:Connect(setupCharacter)
+    if player.Character then
+        setupCharacter(player.Character)
+    end
 end)
 
 local Players = game:GetService("Players")
@@ -2993,6 +3110,13 @@ worldBox:AddButton({
                 end
             end
         end)
+    end
+})
+
+worldBox:AddButton({
+    Text = "Delete Doors",
+    Func = function()
+        PrisonAPI.DeleteDoors()
     end
 })
 
