@@ -1,11 +1,10 @@
 --[[
-    BloomWare v1.2 (Small Update Stuff)
+    BloomWare v1.3 (More Blatant Stuff)
     Game: Prison Life
-    Status: STable / Maybe Detected
+    Status: Stable / Maybe Detected
     
-    Release Notes v1.2:
-    -FIX : Anti Taser is Now Fully Fixed
-    -FEATURES ADDED : Delete Doors
+    Release Notes v1.3:
+    -FEATURES ADDED : Target Spin Lock (Bannable)
 ]]
 
 
@@ -2308,6 +2307,146 @@ combatBox:AddButton({
         end
     end
 })
+
+
+getgenv().spin = {
+    enabled = false,
+    straferadius = 10,
+    strafespeed = 2,
+    spinspeed = 5,
+    angle = 0,
+    keybind = Enum.KeyCode.P
+}
+
+local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoidRootPart = newCharacter:WaitForChild("HumanoidRootPart")
+end)
+
+local spinToggle = combatBox:AddToggle("SpinLockToggle", {
+    Text = "Target Spin Lock",
+    Default = false,
+    Tooltip = "Circle strafe around the selected target while spinning"
+})
+
+local spinKeybind = spinToggle:AddKeyPicker("SpinKeybind", {
+    Text = "Spin Lock Keybind",
+    Default = "P",
+    Mode = "Toggle",
+})
+
+spinKeybind:OnChanged(function(key)
+    getgenv().spin.keybind = key
+end)
+
+spinToggle:OnChanged(function(state)
+    getgenv().spin.enabled = state
+end)
+
+-- Manual keybind handling (in case the library's keypicker doesn't fully override)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == getgenv().spin.keybind then
+        spinToggle.Value = not spinToggle.Value
+        getgenv().spin.enabled = spinToggle.Value
+    end
+end)
+
+RunService.RenderStepped:Connect(function(deltaTime)
+    if getgenv().spin.enabled then
+        local selectedName = targetDropdown.Value
+        if not selectedName or selectedName == "" then return end
+        
+        local targetPlayer = Players:FindFirstChild(selectedName)
+        if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            return
+        end
+        
+        local targetRootPart = targetPlayer.Character.HumanoidRootPart
+        
+        getgenv().spin.angle = getgenv().spin.angle + getgenv().spin.strafespeed * deltaTime
+        local spinAngle = getgenv().spin.angle * getgenv().spin.spinspeed
+        
+        local offset = Vector3.new(
+            math.cos(getgenv().spin.angle) * getgenv().spin.straferadius,
+            0,
+            math.sin(getgenv().spin.angle) * getgenv().spin.straferadius
+        )
+        
+        local targetPosition = targetRootPart.Position + offset
+        local spinRotation = CFrame.Angles(0, math.rad(spinAngle), 0)
+        
+        humanoidRootPart.CFrame = CFrame.new(targetPosition) * spinRotation
+    end
+end)
+
+combatBox:AddDivider()
+
+combatBox:AddSlider("SpinRadius", {
+    Text = "Strafe Radius",
+    Default = 10,
+    Min = 1,
+    Max = 30,
+    Rounding = 1,
+}):OnChanged(function(Value)
+    getgenv().spin.straferadius = Value
+end)
+
+combatBox:AddSlider("StrafeSpeed", {
+    Text = "Strafe Speed",
+    Default = 2,
+    Min = 0.5,
+    Max = 10,
+    Rounding = 2,
+}):OnChanged(function(Value)
+    getgenv().spin.strafespeed = Value
+end)
+
+combatBox:AddSlider("SpinSpeed", {
+    Text = "Spin Speed",
+    Default = 5,
+    Min = 0,
+    Max = 20,
+    Rounding = 1,
+}):OnChanged(function(Value)
+    getgenv().spin.spinspeed = Value
+end)
+
+
+RunService.RenderStepped:Connect(function(deltaTime)
+    if getgenv().spin.enabled then
+        local selectedName = targetDropdown.Value
+        if not selectedName or selectedName == "" then 
+            getgenv().spin.enabled = false
+            spinToggle.Value = false
+            return 
+        end
+        
+        local targetPlayer = Players:FindFirstChild(selectedName)
+        if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            return
+        end
+        
+        local targetRootPart = targetPlayer.Character.HumanoidRootPart
+        
+        getgenv().spin.angle = getgenv().spin.angle + getgenv().spin.strafespeed * deltaTime
+        local spinAngle = getgenv().spin.angle * getgenv().spin.spinspeed
+        
+        local offset = Vector3.new(
+            math.cos(getgenv().spin.angle) * getgenv().spin.straferadius,
+            0,
+            math.sin(getgenv().spin.angle) * getgenv().spin.straferadius
+        )
+        
+        local targetPosition = targetRootPart.Position + offset
+        local spinRotation = CFrame.Angles(0, math.rad(spinAngle), 0)
+        
+        humanoidRootPart.CFrame = CFrame.new(targetPosition) * spinRotation
+    end
+end)
 --silent aim
 local silentBox = Tabs.Rage:AddLeftGroupbox("Silent Aim (PC)", "skull")
 silentBox:AddToggle("SAToggle", {
@@ -2459,6 +2598,36 @@ hbarBox:AddToggle("hbarToggle", {
 }):OnChanged(function(Value)
     getgenv().hbar.enabled = Value
 end)
+
+hbarBox:AddButton({
+    Text = "Show All Health",
+    Func = function()
+        local function ApplyESP(v)
+            if v.Character and v.Character:FindFirstChildOfClass'Humanoid' then
+                v.Character.Humanoid.NameDisplayDistance = 9e9
+                v.Character.Humanoid.NameOcclusion = "NoOcclusion"
+                v.Character.Humanoid.HealthDisplayDistance = 9e9
+                v.Character.Humanoid.HealthDisplayType = "AlwaysOn"
+                v.Character.Humanoid.Health = v.Character.Humanoid.Health -- triggers changed
+            end
+        end
+        for i,v in pairs(game.Players:GetPlayers()) do
+        ApplyESP(v)
+        v.CharacterAdded:Connect(function()
+            task.wait(0.33)
+            ApplyESP(v)
+        end)
+        end
+
+        game.Players.PlayerAdded:Connect(function(v)
+        ApplyESP(v)
+        v.CharacterAdded:Connect(function()
+            task.wait(0.33)
+            ApplyESP(v)
+        end)
+        end)
+    end
+})
 
 local dotBox = Tabs.Visual:AddRightGroupbox("Dot ESP", "circle")
 
@@ -3182,3 +3351,4 @@ SaveManager:SetSubFolder("Prison-Life") -- if the game has multiple places insid
 SaveManager:BuildConfigSection(Tabs["UI Settings"])
 ThemeManager:ApplyToTab(Tabs["UI Settings"])
 SaveManager:LoadAutoloadConfig()
+ThemeManager:ApplyTheme("Quartz")
