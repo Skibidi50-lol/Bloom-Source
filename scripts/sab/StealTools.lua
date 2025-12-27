@@ -383,6 +383,55 @@ local function toggleBoostJump(enabled)
     end
 end
 
+local animationsDisabled = false
+local animationConnections = {}
+
+local function clearAnimConnections()
+	for _, c in ipairs(animationConnections) do
+		if c.Connected then c:Disconnect() end
+	end
+	table.clear(animationConnections)
+end
+
+local function applyNoAnimations(humanoid)
+	if not humanoid then return end
+
+	-- stop everything currently running
+	for _, track in ipairs(humanoid:GetPlayingAnimationTracks()) do
+		track:Stop()
+	end
+
+	-- block new animations
+	local conn = humanoid.AnimationPlayed:Connect(function(track)
+        if animationsDisabled then
+            track:Stop()
+        end
+	end)
+
+	table.insert(animationConnections, conn)
+end
+
+local function toggleNoAnimations(enabled)
+	animationsDisabled = enabled
+	clearAnimConnections()
+
+	local character = player.Character
+	if not character then return end
+
+	local humanoid = character:FindFirstChild("Humanoid")
+	if not humanoid then return end
+
+	if enabled then
+		applyNoAnimations(humanoid)
+	end
+end
+
+-- re-apply after respawn when enabled
+player.CharacterAdded:Connect(function(char)
+	if not animationsDisabled then return end
+	local humanoid = char:WaitForChild("Humanoid")
+	applyNoAnimations(humanoid)
+end)
 
 
 -- GUI Setup
@@ -399,7 +448,7 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = CoreGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 280, 0, 300)
+frame.Size = UDim2.new(0, 280, 0, 340)
 frame.Position = UDim2.new(0.02, 0, 0.3, 0)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 frame.BackgroundTransparency = 0.5
@@ -524,6 +573,7 @@ createToggle("Jump Boost", toggleBoostJump, boostJumpEnabled)
 createToggle("Auto Kick", toggleProtection, autoKickEnabled)
 createToggle("Player ESP", toggleESP, playerESPEnabled)
 createToggle("Plot Timers", togglePlotTimers, plotTimersEnabled)
+createToggle("No Animations", toggleNoAnimations, animationsDisabled)
 
 local xrayEnabled = false
 local originalTransparency = {}
