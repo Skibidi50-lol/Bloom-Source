@@ -21,7 +21,7 @@ local godModeEnabled = false
 local plotTimersEnabled = false
 
 -- Speed Boost Vars
-local BASE_SPEED = 54
+local BASE_SPEED = 55
 local BOOST_MULTIPLIER = 0.5
 local boosting = false
 local attachment, linearVelocity
