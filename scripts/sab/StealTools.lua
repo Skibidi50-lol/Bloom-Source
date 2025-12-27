@@ -492,9 +492,10 @@ createToggle("Xray", toggleXray, xrayEnabled)
 --float
 local floatingEnabled = false
 local floor = nil
-local lastUpdate = tick()
 local heartbeatConn = nil
 local char = nil
+
+local smoothBase = 7 -- responsiveness (higher = faster follow)
 
 local function makeFloor()
     if floor then return end
@@ -507,24 +508,14 @@ local function makeFloor()
     floor.Anchored = true
     floor.CanCollide = true
     floor.CastShadow = false
-    floor.Transparency = 0
     floor.CFrame = CFrame.new(0, -1000, 0)
 
     local tex = Instance.new("Decal")
-    tex.Name = "CoolTexture"
     tex.Texture = "rbxassetid://14650903579"
     tex.Parent = floor
 
-    floor.Parent = Workspace
+    floor.Parent = workspace
 end
-
-local function enableFloat()
-    floatingEnabled = true
-    char = player.Character or player.CharacterAdded:Wait()
-
-    makeFloor()
-
-    local smoothFactor = 3 -- higher = smoother + slower glide
 
 local function updateFloorPos(dt)
     if not floatingEnabled then return end
@@ -543,18 +534,35 @@ local function updateFloorPos(dt)
     local currentPos = floor.Position
     local distance = (targetPos - currentPos).Magnitude
 
-    -- Snap instantly if very far
-    if distance > 10 then
+    -- snap instantly if too far (no waiting delay)
+    if distance > 14 then
         floor.CFrame = CFrame.new(targetPos)
         return
     end
 
-    -- dt-based lerp (buttery smooth)
-    local alpha = math.clamp(dt * smoothFactor, 0, 1)
-    local newPos = currentPos:Lerp(targetPos, alpha)
+    -- adaptive smoothing
+    -- farther = faster catch-up
+    -- closer = floaty glide
+    local boost = math.clamp(distance / 5, 0.6, 3)
+    local alpha = math.clamp(dt * smoothBase * boost, 0, 1)
 
+    local newPos = currentPos:Lerp(targetPos, alpha)
     floor.CFrame = CFrame.new(newPos)
 end
+
+local function enableFloat()
+    floatingEnabled = true
+    char = player.Character or player.CharacterAdded:Wait()
+
+    makeFloor()
+
+    -- snap instantly on enable
+    local root = char:WaitForChild("HumanoidRootPart")
+    floor.CFrame = CFrame.new(
+        root.Position.X,
+        root.Position.Y - 0.35,
+        root.Position.Z
+    )
 
     heartbeatConn = RunService.Heartbeat:Connect(updateFloorPos)
 end
