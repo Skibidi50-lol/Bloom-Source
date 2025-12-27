@@ -5,6 +5,8 @@ local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
+local UserInputService = game:GetService("UserInputService")
+
 
 -- Character setup
 local character = player.Character or player.CharacterAdded:Wait()
@@ -314,6 +316,75 @@ local function togglePlotTimers(enabled)
     if enabled then enablePlotTimers() else disablePlotTimers() end
 end
 
+--jump boost
+local boostJumpEnabled = false
+local boostJumpConnection = nil
+
+local jumpCooldown = false
+
+local BASE_BOOST = 55
+local SPEED_SCALE = 0.45
+local COOLDOWN_TIME = 0.25
+
+local function applyBoostJump()
+    if jumpCooldown or not humanoid or not root then return end
+    jumpCooldown = true
+
+    local moveSpeed = humanoid.MoveDirection.Magnitude
+    local boost = BASE_BOOST + (moveSpeed * BASE_BOOST * SPEED_SCALE)
+
+    root.AssemblyLinearVelocity = Vector3.new(
+        root.AssemblyLinearVelocity.X,
+        boost,
+        root.AssemblyLinearVelocity.Z
+    )
+
+    local fallConn
+    fallConn = RunService.Stepped:Connect(function()
+        if not boostJumpEnabled or not humanoid or not root then
+            fallConn:Disconnect()
+            return
+        end
+
+        if humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+            local v = root.AssemblyLinearVelocity
+            root.AssemblyLinearVelocity = Vector3.new(
+                v.X,
+                math.clamp(v.Y, -28, 115),
+                v.Z
+            )
+        else
+            fallConn:Disconnect()
+        end
+    end)
+
+    task.delay(COOLDOWN_TIME, function()
+        jumpCooldown = false
+    end)
+end
+
+
+local function toggleBoostJump(enabled)
+    boostJumpEnabled = enabled
+
+    if enabled then
+        if boostJumpConnection then
+            boostJumpConnection:Disconnect()
+        end
+
+        boostJumpConnection =
+            UserInputService.JumpRequest:Connect(applyBoostJump)
+
+    else
+        if boostJumpConnection then
+            boostJumpConnection:Disconnect()
+            boostJumpConnection = nil
+        end
+    end
+end
+
+
+
 -- GUI Setup
 pcall(function() CoreGui:FindFirstChild("BloomWareHub"):Destroy() end)
 pcall(function() Workspace:FindFirstChild("BloomESP"):Destroy() end)
@@ -328,7 +399,7 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = CoreGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 280, 0, 260)
+frame.Size = UDim2.new(0, 280, 0, 300)
 frame.Position = UDim2.new(0.02, 0, 0.3, 0)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 frame.BackgroundTransparency = 0.5
@@ -449,6 +520,7 @@ end
 
 -- Create toggles
 createToggle("Speed Boost", toggleSpeed, speedBoostEnabled)
+createToggle("Jump Boost", toggleBoostJump, boostJumpEnabled)
 createToggle("Auto Kick", toggleProtection, autoKickEnabled)
 createToggle("Player ESP", toggleESP, playerESPEnabled)
 createToggle("Plot Timers", togglePlotTimers, plotTimersEnabled)
@@ -595,6 +667,7 @@ player.CharacterAdded:Connect(function(newChar)
     setupSpeed()
     if speedBoostEnabled then boosting = true startSpeedLoop() end
     if godModeEnabled then enableGodMode() end
+    if boostJumpEnabled then toggleBoostJump(true) end
 end)
 
 setupSpeed()
