@@ -328,7 +328,7 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = CoreGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 280, 0, 240)
+frame.Size = UDim2.new(0, 280, 0, 260)
 frame.Position = UDim2.new(0.02, 0, 0.3, 0)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 frame.BackgroundTransparency = 0.5
@@ -451,7 +451,6 @@ end
 createToggle("Speed Boost", toggleSpeed, speedBoostEnabled)
 createToggle("Auto Kick", toggleProtection, autoKickEnabled)
 createToggle("Player ESP", toggleESP, playerESPEnabled)
-createToggle("God Mode", toggleGodMode, godModeEnabled)
 createToggle("Plot Timers", togglePlotTimers, plotTimersEnabled)
 
 local xrayEnabled = false
@@ -489,6 +488,96 @@ local function toggleXray(enabled)
 end
 
 createToggle("Xray", toggleXray, xrayEnabled)
+
+--float
+local floatingEnabled = false
+local floor = nil
+local lastUpdate = tick()
+local heartbeatConn = nil
+local char = nil
+
+local function makeFloor()
+    if floor then return end
+
+    floor = Instance.new("Part")
+    floor.Name = "FloatingPlatform"
+    floor.Size = Vector3.new(12, 0.3, 12)
+    floor.Material = Enum.Material.Neon
+    floor.BrickColor = BrickColor.new("Really white")
+    floor.Anchored = true
+    floor.CanCollide = true
+    floor.CastShadow = false
+    floor.Transparency = 0
+    floor.CFrame = CFrame.new(0, -1000, 0)
+
+    local tex = Instance.new("Decal")
+    tex.Name = "CoolTexture"
+    tex.Texture = "rbxassetid://14650903579"
+    tex.Parent = floor
+
+    floor.Parent = Workspace
+end
+
+local function enableFloat()
+    floatingEnabled = true
+    char = player.Character or player.CharacterAdded:Wait()
+
+    makeFloor()
+
+    local smoothFactor = 3 -- higher = smoother + slower glide
+
+local function updateFloorPos(dt)
+    if not floatingEnabled then return end
+    if not floor or not floor.Parent then return end
+    if not char then return end
+
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local targetPos = Vector3.new(
+        root.Position.X,
+        root.Position.Y - 0.35,
+        root.Position.Z
+    )
+
+    local currentPos = floor.Position
+    local distance = (targetPos - currentPos).Magnitude
+
+    -- Snap instantly if very far
+    if distance > 10 then
+        floor.CFrame = CFrame.new(targetPos)
+        return
+    end
+
+    -- dt-based lerp (buttery smooth)
+    local alpha = math.clamp(dt * smoothFactor, 0, 1)
+    local newPos = currentPos:Lerp(targetPos, alpha)
+
+    floor.CFrame = CFrame.new(newPos)
+end
+
+    heartbeatConn = RunService.Heartbeat:Connect(updateFloorPos)
+end
+
+local function disableFloat()
+    floatingEnabled = false
+
+    if heartbeatConn then
+        heartbeatConn:Disconnect()
+        heartbeatConn = nil
+    end
+
+    if floor then
+        floor:Destroy()
+        floor = nil
+    end
+end
+
+local function toggleFloat(enabled)
+    if enabled then enableFloat() else disableFloat() end
+end
+
+createToggle("Float", toggleFloat, floatingEnabled)
 
 -- Respawn handler
 player.CharacterAdded:Connect(function(newChar)
