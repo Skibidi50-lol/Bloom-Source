@@ -203,6 +203,8 @@ local function toggleESP(enabled)
     end
 end
 
+
+
 -- God Mode
 local healthConn
 local function enableGodMode()
@@ -451,6 +453,42 @@ createToggle("Auto Kick", toggleProtection, autoKickEnabled)
 createToggle("Player ESP", toggleESP, playerESPEnabled)
 createToggle("God Mode", toggleGodMode, godModeEnabled)
 createToggle("Plot Timers", togglePlotTimers, plotTimersEnabled)
+
+local xrayEnabled = false
+local originalTransparency = {}
+
+local function XrayOn(obj)
+    for _, v in pairs(obj:GetChildren()) do
+        if v:IsA("BasePart") and not v.Parent:FindFirstChild("Humanoid") then
+            if originalTransparency[v] == nil then
+                originalTransparency[v] = v.LocalTransparencyModifier
+            end
+            v.LocalTransparencyModifier = 0.75
+        end
+        XrayOn(v)
+    end
+end
+
+local function XrayOff(obj)
+    for _, v in pairs(obj:GetChildren()) do
+        if v:IsA("BasePart") and originalTransparency[v] ~= nil then
+            v.LocalTransparencyModifier = originalTransparency[v]
+            originalTransparency[v] = nil
+        end
+        XrayOff(v)
+    end
+end
+
+local function toggleXray(enabled)
+    xrayEnabled = enabled
+    if enabled then
+        XrayOn(Workspace)
+    else
+        XrayOff(Workspace)
+    end
+end
+
+createToggle("Xray", toggleXray, xrayEnabled)
 
 -- Respawn handler
 player.CharacterAdded:Connect(function(newChar)
