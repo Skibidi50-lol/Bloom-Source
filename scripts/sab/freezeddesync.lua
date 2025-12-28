@@ -1,133 +1,89 @@
+--hello guys
+
 local Players = game:GetService("Players")
-local CoreGui = game:GetService("CoreGui")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
 
-local DESYNC_FLAGS = {
-    {"DFIntS2PhysicsSenderRate", "-30"},          
-    {"WorldStepMax", "-1"},                                 
-    {"DFIntTouchSenderMaxBandwidthBps", "-1"},            
-    {"DFFlagUseClientAuthoritativePhysicsForHumanoids", "True"},
-    {"DFFlagClientCharacterControllerPhysicsOverride", "True"},
-    {"DFIntSimBlockLargeLocalToolWeldManipulationsThreshold", "-1"},
-    {"DFIntClientPhysicsMaxSendRate", "2147483647"},
-    {"DFIntPhysicsSenderRate", "2147483647"},
-    {"DFIntClientPhysicsSendRate", "2147483647"},
-    {"DFIntNetworkSendRate", "2147483647"},
-    {"DFIntDebugSimPrimalNewtonIts", "0"},
-    {"DFIntDebugSimPrimalPreconditioner", "0"},
-    {"DFIntDebugSimPrimalPreconditionerMinExp", "0"},
-    {"DFIntDebugSimPrimalToleranceInv", "0"},
-    {"DFIntMinClientSimulationRadius", "2147000000"},
-    {"DFIntMaxClientSimulationRadius", "2147000000"},
-    {"DFIntClientSimulationRadiusBuffer", "2147000000"},
-    {"DFIntMinimalSimRadiusBuffer", "2147000000"},
-    {"DFIntSimVelocityCorrectionDampening", "0"},
-    {"DFIntSimPositionCorrectionDampening", "0"},
-    {"DFFlagDebugDisablePositionCorrection", "True"},
-    {"GameNetPVHeaderRotationalVelocityZeroCutoffExponent", "-2147483647"},
-    {"GameNetPVHeaderLinearVelocityZeroCutoffExponent", "-2147483647"},
-    {"DFIntUnstickForceAttackInTenths", "-20"},
-}
+local running = false
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "desync"
-if gethui then
-    ScreenGui.Parent = gethui()
-else
-    ScreenGui.Parent = CoreGui
-end
+local function applyFlags()
+    local flags = {
+        {"GameNetPVHeaderRotationalVelocityZeroCutoffExponent", "-5000"},
+        {"GameNetPVHeaderLinearVelocityZeroCutoffExponent", "-5000"},
+        {"LargeReplicatorWrite5", "true"},
+        {"LargeReplicatorRead5", "true"},
+        {"LargeReplicatorEnabled9", "true"},
+        {"LargeReplicatorSerializeRead3", "true"},
+        {"LargeReplicatorSerializeWrite4", "true"},
+        {"NextGenReplicatorEnabledWrite4", "true"},
+        {"AngularVelociryLimit", "360"},
+        {"S2PhysicsSenderRate", "15000"},
+        {"PhysicsSenderMaxBandwidthBps", "20000"},
+        {"MaxDataPacketPerSend", "2147483647"},
+        {"MaxAcceptableUpdateDelay", "1"},
+        {"InterpolationFrameVelocityThresholdMillionth", "5"},
+        {"InterpolationFramePositionThresholdMillionth", "5"},
+        {"InterpolationFrameRotVelocityThresholdMillionth", "5"},
+        {"CheckPVCachedVelThresholdPercent", "10"},
+        {"CheckPVCachedRotVelThresholdPercent", "10"},
+        {"WorldStepMax", "30"},
+        {"TimestepArbiterOmegaThou", "1073741823"},
+        {"TimestepArbiterHumanoidLinearVelThreshold", "1"},
+        {"TimestepArbiterHumanoidTurningVelThreshold", "1"},
+        {"TimestepArbiterVelocityCriteriaThresholdTwoDt", "2147483646"},
+        {"SimExplicitlyCappedTimestepMultiplier", "2147483646"},
+        {"MaxTimestepMultiplierAcceleration", "2147483647"},
+        {"MaxTimestepMultiplierBuoyancy", "2147483647"},
+        {"MaxTimestepMultiplierContstraint", "2147483647"},
+        {"MaxMissedWorldStepsRemembered", "-2147483648"},
+        {"SimOwnedNOUCountThresholdMillionth", "2147483647"},
+        {"StreamJobNOUVolumeCap", "2147483647"},
+        {"StreamJobNOUVolumeLengthCap", "2147483647"},
+        {"ReplicationFocusNouExtentsSizeCutoffForPauseStuds", "2147483647"},
+        {"DebugSendDistInSteps", "-2147483648"},
+        {"GameNetDontSendRedundantNumTimes", "1"},
+        {"GameNetDontSendRedundantDeltaPositionMillionth", "1"},
+        {"CheckPVLinearVelocityIntegrateVsDeltaPositionThresholdPercent", "1"},
+        {"CheckPVDifferencesForInterpolationMinVelThresholdStudsPerSecHundredth", "1"},
+        {"CheckPVDifferencesForInterpolationMinRotVelThresholdRadsPerSecHundredth", "1"},
+    }
 
-local MainButton = Instance.new("TextButton")
-MainButton.Name = "DesyncMacro"
-MainButton.Parent = ScreenGui
-MainButton.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-MainButton.Position = UDim2.new(0.85, 0, 0.4, 0)
-MainButton.Size = UDim2.new(0, 65, 0, 65)
-MainButton.Font = Enum.Font.FredokaOne
-MainButton.Text = "DESYNCOFF"
-MainButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-MainButton.TextSize = 14
-MainButton.AutoButtonColor = true
-
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(1, 0)
-Corner.Parent = MainButton
-
-local Stroke = Instance.new("UIStroke")
-Stroke.Color = Color3.fromRGB(255, 255, 255)
-Stroke.Thickness = 3
-Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-Stroke.Parent = MainButton
-
-
-local dragging, dragInput, dragStart, startPos
-
-local function update(input)
-    local delta = input.Position - dragStart
-    MainButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
-
-MainButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainButton.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+    for _, f in ipairs(flags) do
+        pcall(function()
+            setfflag(f[1], f[2])
         end)
-    end
-end)
-
-MainButton.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then update(input) end
-end)
-
-
-local isMacroActive = false
-local loopConnection = nil
-
-local function spamFlags()
-    if setfflag then
-        for _, flagData in ipairs(DESYNC_FLAGS) do
-            pcall(function()
-                setfflag(flagData[1], flagData[2])
-            end)
-        end
+        task.wait(0.004)
     end
 end
 
-MainButton.MouseButton1Click:Connect(function()
-    isMacroActive = not isMacroActive
-    
-    if isMacroActive then
-        MainButton.Text = "DESYNCACTIVE"
-        MainButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        Stroke.Color = Color3.fromRGB(255, 150, 150)
-        loopConnection = RunService.RenderStepped:Connect(spamFlags)
-        
-    else
-        MainButton.Text = "DESYNCOFF"
-        MainButton.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-        Stroke.Color = Color3.fromRGB(255, 255, 255)
-        
-        if loopConnection then
-            loopConnection:Disconnect()
-            loopConnection = nil
-        end
-        
-        if setfflag then
-            pcall(function()
-                for _, flagData in ipairs(DESYNC_FLAGS) do
-                    setfflag(flagData[1], "False")
-                end
-            end)
-        end
+local function doDesync()
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local hum = char:FindFirstChildWhichIsA("Humanoid")
+    if hum then
+        hum:ChangeState(Enum.HumanoidStateType.Dead)
     end
-end)
+
+    char:ClearAllChildren()
+
+    local fake = Instance.new("Model", workspace)
+    LocalPlayer.Character = fake
+    task.wait(0.02)
+    LocalPlayer.Character = char
+    fake:Destroy()
+end
+
+local function start()
+    if running then return end
+    running = true
+    applyFlags()
+    doDesync()
+    running = false
+end
+
+return {
+    start = start,
+    running = function()
+        return running
+    end
+}
