@@ -1,13 +1,46 @@
 --[[
-    BloomWare v1.3 (More Blatant Stuff)
+    BloomWare v1.3.1
     Game: Prison Life
     Status: Stable / Detected
     
-    Release Notes v1.3:
-    -FEATURES ADDED : Target Spin Lock (Bannable)
+    Release Notes v1.3.1:
+    -FEATURES ADDED : Delete Fences (SKIDDED FROM ULTRA SIGMA HAX)
+    -Loading Screen
+    -Hitbox Material
 ]]
 
 
+local executor_used = tostring(identifyexecutor())
+
+if executor_used == "Solara" then
+    game:GetService("Players").LocalPlayer:Kick("Unsupported executor detected: Solara.\nPlease use Xeno instead!")
+end
+
+local sextoy = Instance.new("Message")
+sextoy.Parent = workspace
+sextoy.Text = "BLOOMWARE - PRISON LIFE"
+task.wait(3)
+sextoy.Text = "Made by Skibidi50-lol :3"
+task.wait(1.2)
+sextoy:Destroy()
+
+--Part set up
+local function processPart(obj)
+    if obj:IsA("BasePart") then
+        obj.BrickColor = BrickColor.new("Really red")
+        obj.Transparency = 0.7
+        obj.CanCollide = false
+    end
+end
+
+local function recursiveProcess(obj)
+    processPart(obj)
+    for _, child in ipairs(obj:GetChildren()) do
+        recursiveProcess(child)
+    end
+end
+
+--logger
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Skibidi50-lol/Bloom-Source/refs/heads/main/modules/executelogger.lua"))()
 
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
@@ -115,6 +148,7 @@ local PrisonAPI = {
     Hitbox = {
         Enabled = false,
         HitboxSize = Vector3.new(15, 15, 15),
+        Material = "Neon",
         Transparency = 0.7,
     },
     Guns = {
@@ -451,6 +485,26 @@ function PrisonAPI.DeleteCellsDoors()
     game.workspace.CellDoors:Destroy()
 end
 
+function PrisonAPI.DelteFencesDame()
+    for _, v in pairs(workspace.Prison_Fences:GetChildren()) do
+        if v.Name == "fence" then
+            recursiveProcess(v)
+
+            local dmg = v:FindFirstChild("damagePart")
+            if dmg then
+                local ti = dmg:FindFirstChild("TouchInterest")
+                if ti then ti:Destroy() end
+            end
+        end
+    end
+end
+
+function PrisonAPI.DeletePrisonWalls()
+    for _, v in pairs(workspace.Prison_OuterWall.prison_wall:GetChildren()) do
+        recursiveProcess(v)
+    end
+end
+
 function PrisonAPI.SpamOpenDoors()
 	local Keycard = Character:FindFirstChild("Key card")
 
@@ -561,10 +615,10 @@ local AimbotConnections = {}
 
 -- FOV Circle
 local FOVCircle = Drawing.new("Circle")
-FOVCircle.Thickness = 2
-FOVCircle.NumSides = 64
+FOVCircle.Thickness = 0.5
+FOVCircle.NumSides = 10
 FOVCircle.Filled = false
-FOVCircle.Transparency = 0.7
+FOVCircle.Transparency = 0
 FOVCircle.Color = PrisonAPI.Aimbot.FOVColor or Color3.fromRGB(255, 0, 150)
 FOVCircle.Radius = PrisonAPI.Aimbot.FOV or 150
 FOVCircle.Visible = false
@@ -1423,6 +1477,7 @@ local function extend()
             root.Size = PrisonAPI.Hitbox.HitboxSize
             root.Shape = Enum.PartType.Ball
             root.Transparency = PrisonAPI.Hitbox.Transparency
+            root.Material = PrisonAPI.Hitbox.Material
             root.CanCollide = false
             root.BrickColor = player.TeamColor or BrickColor.new("Bright red")
         end
@@ -1457,7 +1512,6 @@ else
     print("Already Bypassed or Failed.")
 end
 
-
 --main script
 local Window = Library:CreateWindow({
 	Title = "BloomWare | PL",
@@ -1465,7 +1519,7 @@ local Window = Library:CreateWindow({
 	Icon = nil,
 	NotifySide = "Right",
 	ShowCustomCursor = true,
-    Size = UDim2.fromOffset(630, 530),
+    Size = UDim2.fromOffset(630, 540),
     CornerRadius = 10,
     SidebarMinWidth = 200, -- stop shrinking when the sidebar hits 200px
     SidebarCompactWidth = 56,
@@ -1486,8 +1540,10 @@ local infoBox = Tabs.Info:AddLeftGroupbox("Script Information", "info")
 
 infoBox:AddLabel("[<font color=\"rgb(73, 230, 133)\">Update Note</font>]")
 infoBox:AddDivider()
-infoBox:AddLabel("Update 1.3")
-infoBox:AddLabel("[+] Spin Lock Target")
+infoBox:AddLabel("Update 1.3.1")
+infoBox:AddLabel("[+] Loading Screen")
+infoBox:AddLabel("[+] Delete Fences")
+infoBox:AddLabel("[+] Hitbox Material")
 --Weapons Sigma
 local weaponBox = Tabs.Weapons:AddLeftGroupbox("Weapons Giver", "sword")
 
@@ -1615,7 +1671,7 @@ weaponModBox2:AddButton({
         while true do
 		for i, v in pairs(LocalPlayer.Backpack:GetChildren()) do
 			if v:GetAttribute("FireRate") ~= nil then
-				v:SetAttribute("FireRate", 0.001)
+				v:SetAttribute("FireRate", 0.02)
 			end
 		end
         wait(0.1)
@@ -1640,10 +1696,10 @@ weaponModBox2:AddButton({
 weaponModBox2:AddButton({
     Text = "Mod All Guns",
     Func = function()
-        while true do
+        while true do 
             for i, v in pairs(LocalPlayer.Backpack:GetChildren()) do
 				if v:GetAttribute("FireRate") ~= nil then
-					v:SetAttribute("FireRate", 0.001)
+					v:SetAttribute("FireRate", 0.02)
 					v:SetAttribute("AutoFire", true)
 					v:SetAttribute("SpreadRadius", 0)
 				end
@@ -1826,6 +1882,26 @@ hitboxBox:AddSlider("HitboxTransparency", {
 }):OnChanged(function(Value)
     PrisonAPI.Hitbox.Transparency = Value
 end)
+
+hitboxBox:AddDropdown("ToolColorSelect", {
+    Values = {
+        "Plastic", "SmoothPlastic", "Neon", "Metal", "Wood", "WoodPlanks",
+        "Fabric", "Concrete", "Brick", "Cobblestone", "CorrodedMetal",
+        "DiamondPlate", "Foil", "ForceField", "Glass", "Granite",
+        "Grass", "Ice", "Marble", "Pebble", "Rock", "Rust",
+        "Sand", "Slate", "Asphalt", "Basalt", "Cardboard",
+        "Carpet", "CeramicTiles", "ClayRoofTiles", "CrackedLava",
+        "Glacier", "Ground", "LeafyGrass", "Leather", "Limestone",
+        "Mud", "Pavement", "Plaster", "RoofShingles", "Rubber",
+        "Salt", "Sandstone", "Snow"
+    },
+    Default = "Neon",
+    Text = "Hitbox Material",
+    Tooltip = "idfk"
+}):OnChanged(function(Value)
+    PrisonAPI.Hitbox.Material = Value
+end)
+
 
 local combatBox = Tabs.Main:AddRightGroupbox("Combat Settings", "swords")
 
@@ -2178,49 +2254,6 @@ combatBox:AddButton({
     end
 })
 
-local keyCardBox = Tabs.Main:AddRightGroupbox("Key Card", "id-card")
-keyCardBox:AddToggle("AutoKeyCaedToggle", {
-    Text = "Auto TP To KeyCard",
-    Default = false,
-    Tooltip = "Auto TP To KeyCard Drop"
-}):OnChanged(function(Value)
-   PrisonAPI.AutoKeyCard = Value
-   task.spawn(function() 
-        while PrisonAPI.AutoKeyCard do 
-            if workspace:FindFirstChild("Key card") then 
-                 LocalPlayer.Character.HumanoidRootPart.CFrame = workspace["Key card"].Mesh.CFrame
-            end 
-            task.wait(PrisonAPI.KeyCardDelay) 
-        end 
-    end) 
-end)
-
-keyCardBox:AddToggle("AutoKeyCaedToggle", {
-    Text = "Auto TP KeyCard To You",
-    Default = false,
-    Tooltip = "Makes KeyCard Drop Tp To You"
-}):OnChanged(function(Value)
-   PrisonAPI.AutoKeyCardTP = Value
-   task.spawn(function() 
-        while PrisonAPI.AutoKeyCardTP do 
-            if workspace:FindFirstChild("Key card") then 
-                 workspace["Key card"].Mesh.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
-            end 
-            task.wait(PrisonAPI.KeyCardDelay) 
-        end 
-    end) 
-end)
-
-keyCardBox:AddSlider("TpDelay", {
-    Text = "Teleport Delay",
-    Default = 1.5,
-    Min = 0.1,
-    Max = 10,
-    Rounding = 1,
-}):OnChanged(function(Value)
-    PrisonAPI.KeyCardDelay = Value
-end)
-
 combatBox:AddDivider()
 combatBox:AddLabel("Target Settings", true)
 
@@ -2383,8 +2416,6 @@ RunService.RenderStepped:Connect(function(deltaTime)
         humanoidRootPart.CFrame = CFrame.new(targetPosition) * spinRotation
     end
 end)
-
-combatBox:AddDivider()
 
 combatBox:AddSlider("SpinRadius", {
     Text = "Strafe Radius",
@@ -3287,6 +3318,13 @@ worldBox:AddButton({
     Text = "Delete Doors",
     Func = function()
         PrisonAPI.DeleteDoors()
+    end
+})
+
+worldBox:AddButton({
+    Text = "Delete Fences",
+    Func = function()
+        PrisonAPI.DelteFencesDame()
     end
 })
 
