@@ -1,89 +1,119 @@
---hello guys
-
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
-local running = false
-
-local function applyFlags()
-    local flags = {
-        {"GameNetPVHeaderRotationalVelocityZeroCutoffExponent", "-5000"},
-        {"GameNetPVHeaderLinearVelocityZeroCutoffExponent", "-5000"},
-        {"LargeReplicatorWrite5", "true"},
-        {"LargeReplicatorRead5", "true"},
-        {"LargeReplicatorEnabled9", "true"},
-        {"LargeReplicatorSerializeRead3", "true"},
-        {"LargeReplicatorSerializeWrite4", "true"},
-        {"NextGenReplicatorEnabledWrite4", "true"},
-        {"AngularVelociryLimit", "360"},
-        {"S2PhysicsSenderRate", "15000"},
-        {"PhysicsSenderMaxBandwidthBps", "20000"},
-        {"MaxDataPacketPerSend", "2147483647"},
-        {"MaxAcceptableUpdateDelay", "1"},
-        {"InterpolationFrameVelocityThresholdMillionth", "5"},
-        {"InterpolationFramePositionThresholdMillionth", "5"},
-        {"InterpolationFrameRotVelocityThresholdMillionth", "5"},
-        {"CheckPVCachedVelThresholdPercent", "10"},
-        {"CheckPVCachedRotVelThresholdPercent", "10"},
-        {"WorldStepMax", "30"},
-        {"TimestepArbiterOmegaThou", "1073741823"},
-        {"TimestepArbiterHumanoidLinearVelThreshold", "1"},
-        {"TimestepArbiterHumanoidTurningVelThreshold", "1"},
-        {"TimestepArbiterVelocityCriteriaThresholdTwoDt", "2147483646"},
-        {"SimExplicitlyCappedTimestepMultiplier", "2147483646"},
-        {"MaxTimestepMultiplierAcceleration", "2147483647"},
-        {"MaxTimestepMultiplierBuoyancy", "2147483647"},
-        {"MaxTimestepMultiplierContstraint", "2147483647"},
-        {"MaxMissedWorldStepsRemembered", "-2147483648"},
-        {"SimOwnedNOUCountThresholdMillionth", "2147483647"},
-        {"StreamJobNOUVolumeCap", "2147483647"},
-        {"StreamJobNOUVolumeLengthCap", "2147483647"},
-        {"ReplicationFocusNouExtentsSizeCutoffForPauseStuds", "2147483647"},
-        {"DebugSendDistInSteps", "-2147483648"},
-        {"GameNetDontSendRedundantNumTimes", "1"},
-        {"GameNetDontSendRedundantDeltaPositionMillionth", "1"},
-        {"CheckPVLinearVelocityIntegrateVsDeltaPositionThresholdPercent", "1"},
-        {"CheckPVDifferencesForInterpolationMinVelThresholdStudsPerSecHundredth", "1"},
-        {"CheckPVDifferencesForInterpolationMinRotVelThresholdRadsPerSecHundredth", "1"},
-    }
-
-    for _, f in ipairs(flags) do
-        pcall(function()
-            setfflag(f[1], f[2])
-        end)
-        task.wait(0.004)
-    end
-end
-
-local function doDesync()
-    local char = LocalPlayer.Character
-    if not char then return end
-
-    local hum = char:FindFirstChildWhichIsA("Humanoid")
-    if hum then
-        hum:ChangeState(Enum.HumanoidStateType.Dead)
-    end
-
-    char:ClearAllChildren()
-
-    local fake = Instance.new("Model", workspace)
-    LocalPlayer.Character = fake
-    task.wait(0.02)
-    LocalPlayer.Character = char
-    fake:Destroy()
-end
-
-local function start()
-    if running then return end
-    running = true
-    applyFlags()
-    doDesync()
-    running = false
-end
-
-return {
-    start = start,
-    running = function()
-        return running
-    end
-}
+local _ = ((table and 11957670)
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local DesyncMenu = Instance.new("ScreenGui")
+DesyncMenu.Name = "DesyncMenu"
+DesyncMenu.ResetOnSpawn = false
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+local UDim2_New = UDim2.new
+MainFrame.Size = UDim2_New(0, 180, 0, 60)
+MainFrame.Position = UDim2_New(0.5, -90, 0.1, 0)
+local Color3_FromRGB = Color3.fromRGB
+MainFrame.BackgroundColor3 = Color3_FromRGB(40, 40, 45)
+MainFrame.BorderSizePixel = 0
+local UICorner = Instance.new("UICorner")
+local UDim_New = UDim.new
+UICorner.CornerRadius = UDim_New(0, 10)
+UICorner.Parent = MainFrame
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3_FromRGB(20, 20, 25)
+UIStroke.Thickness = 1.5
+UIStroke.Parent = MainFrame
+local DragFrame = Instance.new("Frame")
+DragFrame.Name = "DragFrame"
+DragFrame.Size = UDim2_New(1, 0, 1, 0)
+DragFrame.BackgroundTransparency = 1
+DragFrame.Parent = MainFrame
+local DesyncButton = Instance.new("TextButton")
+DesyncButton.Name = "DesyncButton"
+DesyncButton.Size = UDim2_New(0.9, 0, 0.7, 0)
+DesyncButton.Position = UDim2_New(0.05, 0, 0.15, 0)
+DesyncButton.BackgroundColor3 = Color3_FromRGB(200, 50, 50)
+DesyncButton.Text = "Kerlev desync"
+DesyncButton.TextColor3 = Color3_FromRGB(255, 255, 255)
+DesyncButton.TextSize = 12
+DesyncButton.Font = Enum.Font.GothamBold
+DesyncButton.AutoButtonColor = false
+local UICorner_2 = Instance.new("UICorner")
+UICorner_2.CornerRadius = UDim_New(0, 6)
+UICorner_2.Parent = DesyncButton
+local UIStroke_2 = Instance.new("UIStroke")
+UIStroke_2.Color = Color3_FromRGB(150, 30, 30)
+UIStroke_2.Thickness = 1
+UIStroke_2.Parent = DesyncButton
+TextButton.Parent = MainFrame
+Frame.Parent = DesyncMenu
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+local Connection
+Connection = DragFrame.InputBegan:Connect(function(Input, p2_0, p3_0, p4_0) 
+    local Enum_UserInputType = Enum.UserInputType
+    local _ = (Input.UserInputType == Enum_UserInputType.MouseButton1)
+    local _ = ((Input.UserInputType == Enum_UserInputType.Touch) and 16352738)
+end)
+local Connection_2
+Connection_2 = DragFrame.InputChanged:Connect(function(Input_3, p2_0) 
+    local _ = ((Input_3.UserInputType == Enum_UserInputType.MouseMovement) and 13279587)
+    local _ = (Input_3.UserInputType == Enum_UserInputType.Touch)
+end)
+local Connection_3
+Connection_3 = game:GetService("UserInputService").InputChanged:Connect(function(Input_5, GameProcessedEvent, p3_0, p4_0, p5_0) 
+    local _ = ((Input_5 == nil) and 14228812)
+end)
+local Connection_4
+Connection_4 = DesyncButton.MouseEnter:Connect(function() 
+    local TweenInfo = Env.TweenInfo
+    local str = TweenService:Create(DesyncButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3_FromRGB(220, 60, 60),
+    })
+    str:Play()
+end)
+local Connection_5
+Connection_5 = DesyncButton.MouseLeave:Connect(function(X_2, Y_2, p3_0) 
+    local str_2 = TweenService:Create(DesyncButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3_FromRGB(200, 50, 50),
+    })
+    str_2:Play()
+end)
+local Connection_6
+Connection_6 = DesyncButton.MouseButton1Click:Connect(function(p1_0, p2_0, p3_0, p4_0, p5_0)
+    local str_3 = TweenService:Create(DesyncButton, TweenInfo.new(0.1), {
+        BackgroundColor3 = Color3_FromRGB(180, 40, 40),
+    })
+    str_3:Play()
+    task.wait(0.1)
+    local str_4 = TweenService:Create(DesyncButton, TweenInfo.new(0.1), {
+        BackgroundColor3 = Color3_FromRGB(200, 50, 50),
+    })
+    str_4:Play()
+    local _ = (not LocalPlayer.Character and 15920110)
+    local HumanoidRootPart = LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+    task.spawn(function()
+        local setfflag = Env.setfflag
+        setfflag("WorldStepsOffsetAdjustRate", "-1")
+        task.wait(0.01257)
+        setfflag("WorldStepsOffsetAdjustRate", "60")
+        local CFrame = HumanoidRootPart.CFrame
+        local CFrame_New = CFrame.new
+        HumanoidRootPart.CFrame = CFrame * CFrame_New(7, 0, -3)
+        task.wait(0.05214)
+        setfflag("WorldStepsOffsetAdjustRate", "-9999999999")
+        task.wait(0.06615)
+        setfflag("WorldStepsOffsetAdjustRate", "-9999999999")
+        HumanoidRootPart.CFrame = HumanoidRootPart.CFrame * CFrame_New(19, 0, -3)
+        task.wait(1.44719)
+        setfflag("WorldStepsOffsetAdjustRate", "-1")
+end)
+    DesyncButton.Text = "ACTIVATED"
+    task.wait(0.1)
+    DesyncButton.Text = "Kerlev desync"
+    task.wait(0.1)
+    DesyncButton.Text = "ACTIVATED"
+    task.wait(0.1)
+    DesyncButton.Text = "Kerlev desync"
+    task.wait(0.1)
+    DesyncButton.Text = "ACTIVATED"
+    task.wait(0.1)
+    DesyncButton.Text = "Kerlev desync"
+    task.wait(0.1)
+end)
