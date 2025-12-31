@@ -21,7 +21,7 @@ sextoy.Parent = workspace
 sextoy.Text = "BLOOMWARE - PRISON LIFE"
 task.wait(3)
 sextoy.Text = "Made by Skibidi50-lol :3"
-task.wait(1.2)
+task.wait(3)
 sextoy:Destroy()
 
 --Part set up
