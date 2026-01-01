@@ -1,10 +1,10 @@
 --[[
-    BloomWare v1.4.1
+    BloomWare v1.4.2
     Game: Prison Life
     Status: Stable / Detected
     
-    Release Notes v1.4.1:
-    -FEATURES ADDED : Suggestion
+    Release Notes v1.4.2:
+    -FEATURES ADDED : Discord
 ]]
 
 
@@ -544,7 +544,6 @@ end
 function PrisonAPI.SecretRoomTP()
     instantTP(CFrame.new(694.221497, 99.9899979, 2354.8855, -0.00582610117, -1.05773928e-07, -0.999983013, -1.06532649e-08, 1, -1.05713653e-07, 0.999983013, 1.00371862e-08, -0.00582610117))
 end
-
 
 
 function PrisonAPI.DeleteDoors()
@@ -1614,10 +1613,22 @@ local infoBox = Tabs.Info:AddLeftGroupbox("Script Information", "info")
 
 infoBox:AddLabel("[<font color=\"rgb(73, 230, 133)\">Update Note</font>]")
 infoBox:AddDivider()
-infoBox:AddLabel("Update 1.4.1")
-infoBox:AddLabel("[+] Suggestion")
+infoBox:AddLabel("Update 1.4.2")
+infoBox:AddLabel("[+] Discord")
+
+local discordBox = Tabs.Info:AddLeftGroupbox("Discord", "info")
+
+discordBox:AddButton({
+    Text = "Copy Discord Link",
+    Func = function()
+       setclipboard("https://discord.gg/GnN6AmEvtN")
+       Library:Notify({Title = "Discord", Description = "Successfully Copied Discord Link!", Time = 5})
+    end
+})
 
 local suggestBox = Tabs.Info:AddRightGroupbox("Suggestion", "message-square")
+
+
 
 suggestBox:AddInput("SuggestText", {
     Text = "Your Suggestion",
