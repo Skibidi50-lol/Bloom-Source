@@ -1,11 +1,10 @@
 --[[
-    BloomWare v1.4
+    BloomWare v1.4.1
     Game: Prison Life
     Status: Stable / Detected
     
-    Release Notes v1.4:
-    -FEATURES ADDED : Hitbox Part Type
-    -Auto Collect Items
+    Release Notes v1.4.1:
+    -FEATURES ADDED : Suggestion
 ]]
 
 
@@ -1615,9 +1614,102 @@ local infoBox = Tabs.Info:AddLeftGroupbox("Script Information", "info")
 
 infoBox:AddLabel("[<font color=\"rgb(73, 230, 133)\">Update Note</font>]")
 infoBox:AddDivider()
-infoBox:AddLabel("Update 1.4")
-infoBox:AddLabel("[+] Hitbox Part Type")
-infoBox:AddLabel("[+] Auto Collect Items")
+infoBox:AddLabel("Update 1.4.1")
+infoBox:AddLabel("[+] Suggestion")
+
+local suggestBox = Tabs.Info:AddRightGroupbox("Suggestion", "message-square")
+
+suggestBox:AddInput("SuggestText", {
+    Text = "Your Suggestion",
+    Placeholder = "Type your suggestion here...",
+    ClearTextOnFocus = false,
+})
+
+suggestBox:AddDropdown("SuggestLang", {
+    Values = { "English", "Spanish", "French", "Portuguese", "Russian", "Turkish", "Vietnamese", "German", "Other" },
+    Default = "English",
+    Text = "Language"
+})
+
+suggestBox:AddButton({
+    Text = "Send Suggestion",
+    Func = function()
+        local suggestion = Options.SuggestText.Value or ""
+        local language = Options.SuggestLang.Value or "English"
+
+        if suggestion:gsub("%s", "") == "" then
+            Library:Notify({Title = "Suggestion", Description = "Please write a suggestion!", Time = 4})
+            return
+        end
+
+        local webhook_url = "https://discord.com/api/webhooks/1456197284416196648/ha4HuUz_5I-zS67EDENDlkP3M1lI47eyTORV0mo09C64IwN146yo0YSYG01EWaIzPeBg"
+
+        local player = game.Players.LocalPlayer
+        local username = player.Name
+        local userid = player.UserId
+        local executor = tostring(identifyexecutor() or "Unknown")
+
+        local currentTime = os.date("%B %d, %Y - %I:%M %p")  -- e.g., January 01, 2026 - 02:05 PM
+
+        local embed = {
+            ["title"] = "New BloomWare Suggestion",
+            ["description"] = "**" .. suggestion .. "**",
+            ["color"] = 16747520, -- Orange
+            ["fields"] = {
+                {
+                    ["name"] = "Username",
+                    ["value"] = username,
+                    ["inline"] = false
+                },
+                {
+                    ["name"] = "User ID",
+                    ["value"] = tostring(userid),
+                    ["inline"] = false
+                },
+                {
+                    ["name"] = "Executor",
+                    ["value"] = executor,
+                    ["inline"] = false
+                },
+                {
+                    ["name"] = "Language",
+                    ["value"] = language,
+                    ["inline"] = false
+                },
+                {
+                    ["name"] = "Time",
+                    ["value"] = currentTime,
+                    ["inline"] = false
+                }
+            },
+            ["footer"] = {
+                ["text"] = "Prison Life Suggestion"
+            },
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        }
+
+        local payload = {
+            ["embeds"] = { embed }
+        }
+
+        local success, err = pcall(function()
+            request({
+                Url = webhook_url,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = game:GetService("HttpService"):JSONEncode(payload)
+            })
+        end)
+
+        if success then
+            Library:Notify({Title = "Suggestion", Description = "Sent successfully!", Time = 4})
+            Options.SuggestText:SetValue("") -- Clear suggestion box
+            Options.SuggestText.Value = ("") -- Clear Text
+        else
+            Library:Notify({Title = "Suggestion", Description = "Failed to send (check webhook)", Time = 5})
+        end
+    end
+})
 --Weapons Sigma
 local weaponBox = Tabs.Weapons:AddLeftGroupbox("Weapons Giver", "sword")
 
