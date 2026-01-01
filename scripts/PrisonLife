@@ -20,7 +20,7 @@ sextoy.Text = "BLOOMWARE - PRISON LIFE"
 task.wait(3)
 sextoy.Text = "Made by Skibidi50-lol :3"
 task.wait(3)
-sextoy.Text = "Join Community Server : https://discord.gg/4y7es694AQ"
+sextoy.Text = "Join Community Server For More Scripts : https://discord.gg/4y7es694AQ"
 setclipboard("https://discord.gg/4y7es694AQ")
 wait(3)
 sextoy:Destroy()
