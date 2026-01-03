@@ -104,8 +104,8 @@ local info = Instance.new("TextLabel")
 info.Size = UDim2.new(1, -20, 0, 20)
 info.Position = UDim2.new(0, 10, 1, -24)
 info.BackgroundTransparency = 1
-info.Text = "Need a Flying Carpet/WitchBroom
- or Santa Sleight"
+info.Text = "Need a Flying Carpet/WitchBroom or Santa Sleight"
+
 info.Font = Enum.Font.GothamMedium
 info.TextSize = 12
 info.TextColor3 = Color3.fromRGB(80, 80, 80)
