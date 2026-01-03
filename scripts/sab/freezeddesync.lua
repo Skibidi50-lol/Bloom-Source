@@ -290,13 +290,6 @@ desyncBtn.MouseButton1Click:Connect(function()
     local char = player.Character
     if not char then return end
 
-    local humanoid = char:FindFirstChildWhichIsA("Humanoid")
-    if humanoid then
-        humanoid:ChangeState(Enum.HumanoidStateType.Dead)
-    end
-
-    char:ClearAllChildren()
-
     local fakeModel = Instance.new("Model", workspace)
     player.Character = fakeModel
     task.wait()
