@@ -125,22 +125,26 @@ local PrisonAPI = {
     },
     SilentAim = {
         Enabled = false,
-        
-        TargetInmates = false,
-        TargetGuards = false,
-        TargetCriminals = false,
-        
-        WallCheck = false,
-        DeathCheck = false,
-        ForceFieldCheck = false,
-        HitChance = 100,
-        MissSpread = 5,
-        FOV = 75,
-        ShowFOV = false,
-        ShowTargetLine = false,
-        AimPart = "Head",
-        RandomAimParts = false,
-        AimPartsList = {"Head", "Torso", "HumanoidRootPart", "LeftArm", "RightArm", "LeftLeg", "RightLeg"}
+
+    TargetInmates = false,
+    TargetGuards = false,
+    TargetCriminals = false,
+
+    WallCheck = false,
+    DeathCheck = false,
+    ForceFieldCheck = false,
+    HitChance = 100,
+    MissSpread = 5,
+    FOV = 75,
+    ShowFOV = false,
+    ShowTargetLine = false,
+    AimPart = "Head",
+    RandomAimParts = false,
+    AimPartsList = {"Head", "Torso", "HumanoidRootPart", "LeftArm", "RightArm", "LeftLeg", "RightLeg"},
+
+    -- === NEW OPTIONS ===
+    FollowMouseFOV = false,     -- FOV circle follows cursor/touch
+    FOVFollowOffsetY = 0        -- Optional Y offset for mobile comfort
     },
     TargetKillAura = {
         Enabled = false,
@@ -824,29 +828,6 @@ local function UpdateAimbotSettings()
     UpdateFOVCircle()
 end
 --silent aim
-PrisonAPI.SilentAim = {
-    Enabled = false,
-
-    TargetInmates = false,
-    TargetGuards = false,
-    TargetCriminals = false,
-
-    WallCheck = false,
-    DeathCheck = false,
-    ForceFieldCheck = false,
-    HitChance = 100,
-    MissSpread = 5,
-    FOV = 75,
-    ShowFOV = false,
-    ShowTargetLine = false,
-    AimPart = "Head",
-    RandomAimParts = false,
-    AimPartsList = {"Head", "Torso", "HumanoidRootPart", "LeftArm", "RightArm", "LeftLeg", "RightLeg"},
-
-    -- === NEW OPTIONS ===
-    FollowMouseFOV = false,     -- FOV circle follows cursor/touch
-    FOVFollowOffsetY = 0        -- Optional Y offset for mobile comfort
-}
 
 -- Unified function to get current input position (works on PC & Mobile)
 local function GetInputPosition()
