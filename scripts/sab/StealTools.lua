@@ -4,6 +4,45 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 
+-- // Infinite Jump Logic
+local infinityJumpEnabled = false
+local jumpForce = 50
+local clampFallSpeed = 80
+local infJumpConnections = {}
+
+local function disableInfJump()
+    infinityJumpEnabled = false
+    for _, conn in pairs(infJumpConnections) do
+        if conn.Connected then conn:Disconnect() end
+    end
+    infJumpConnections = {}
+end
+
+local function enableInfJump()
+    disableInfJump()
+    infinityJumpEnabled = true
+    
+    table.insert(infJumpConnections, RunService.Heartbeat:Connect(function()
+        if not infinityJumpEnabled then return end
+        local char = player.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp and hrp.Velocity.Y < -clampFallSpeed then
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, -clampFallSpeed, hrp.Velocity.Z)
+        end
+    end))
+
+    table.insert(infJumpConnections, UserInputService.JumpRequest:Connect(function()
+        if not infinityJumpEnabled then return end
+        local char = player.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, jumpForce, hrp.Velocity.Z)
+        end
+    end))
+end
+
 -- // Auto Kick Logic
 local autoKickEnabled = false
 local kickKeyword = "you stole"
@@ -23,36 +62,25 @@ local function disconnectAllKick()
 end
 
 local function kickPlayer()
-    spawn(function()
-        player:Kick(kickMessage)
-    end)
+    spawn(function() player:Kick(kickMessage) end)
 end
 
 local function scanGui(gui)
     if not autoKickEnabled then return end
     for _, obj in ipairs(gui:GetDescendants()) do
         if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-            if hasKeyword(obj.Text) then
-                kickPlayer()
-                return
-            end
+            if hasKeyword(obj.Text) then kickPlayer() return end
             table.insert(kickConnections, obj:GetPropertyChangedSignal("Text"):Connect(function()
-                if autoKickEnabled and hasKeyword(obj.Text) then
-                    kickPlayer()
-                end
+                if autoKickEnabled and hasKeyword(obj.Text) then kickPlayer() end
             end))
         end
     end
     table.insert(kickConnections, gui.DescendantAdded:Connect(function(desc)
         if not autoKickEnabled then return end
         if desc:IsA("TextLabel") or desc:IsA("TextButton") or desc:IsA("TextBox") then
-            if hasKeyword(desc.Text) then
-                kickPlayer()
-            end
+            if hasKeyword(desc.Text) then kickPlayer() end
             table.insert(kickConnections, desc:GetPropertyChangedSignal("Text"):Connect(function()
-                if autoKickEnabled and hasKeyword(desc.Text) then
-                    kickPlayer()
-                end
+                if autoKickEnabled and hasKeyword(desc.Text) then kickPlayer() end
             end))
         end
     end))
@@ -91,9 +119,7 @@ local function applyGodMode(character)
     if not humanoid then return end
     humanoid.BreakJointsOnDeath = false
     table.insert(godConnections, humanoid:GetPropertyChangedSignal("Health"):Connect(function()
-        if humanoid.Health < humanoid.MaxHealth then
-            humanoid.Health = humanoid.MaxHealth
-        end
+        if humanoid.Health < humanoid.MaxHealth then humanoid.Health = humanoid.MaxHealth end
     end))
     if godHeartbeat then godHeartbeat:Disconnect() end
     godHeartbeat = RunService.Heartbeat:Connect(function()
@@ -201,8 +227,8 @@ gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 220, 0, 290)
-frame.Position = UDim2.new(0.5, -110, 0.5, -145)
+frame.Size = UDim2.new(0, 240, 0, 360) -- Slightly wider and taller for bigger text
+frame.Position = UDim2.new(0.5, -120, 0.5, -180)
 frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 frame.BorderSizePixel = 0
 frame.Parent = gui
@@ -214,160 +240,103 @@ stroke.Thickness = 2
 stroke.Parent = frame
 
 local header = Instance.new("TextLabel")
-header.Size = UDim2.new(1, -20, 0, 30)
+header.Size = UDim2.new(1, -20, 0, 35)
 header.Position = UDim2.new(0, 10, 0, 8)
 header.BackgroundTransparency = 1
 header.Text = "BLOOMWARE - SAB"
 header.Font = Enum.Font.GothamBold
-header.TextSize = 18
+header.TextSize = 22 -- INCREASED
 header.TextColor3 = Color3.fromRGB(255, 255, 255)
 header.Parent = frame
 
--- // NEW: Desync Small Frame (The Popup)
+-- // Desync Popup
 local desyncPopup = Instance.new("Frame")
 desyncPopup.Size = UDim2.new(0, 140, 0, 80)
-desyncPopup.Position = UDim2.new(1, 10, 0, 0) -- Positioned to the right of main frame
+desyncPopup.Position = UDim2.new(1, 10, 0, 0)
 desyncPopup.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-desyncPopup.BorderSizePixel = 0
-desyncPopup.Visible = false -- Hidden by default
+desyncPopup.Visible = false
 desyncPopup.Parent = frame
-
 Instance.new("UICorner", desyncPopup).CornerRadius = UDim.new(0, 10)
-local popupStroke = Instance.new("UIStroke")
-popupStroke.Color = Color3.fromRGB(200, 60, 60)
-popupStroke.Thickness = 2
-popupStroke.Parent = desyncPopup
-
-local popupTitle = Instance.new("TextLabel")
-popupTitle.Size = UDim2.new(1, 0, 0, 25)
-popupTitle.BackgroundTransparency = 1
-popupTitle.Text = "Desync Menu"
-popupTitle.Font = Enum.Font.GothamBold
-popupTitle.TextSize = 12
-popupTitle.TextColor3 = Color3.fromRGB(200, 200, 200)
-popupTitle.Parent = desyncPopup
 
 local executeDesyncBtn = Instance.new("TextButton")
 executeDesyncBtn.Size = UDim2.new(0, 110, 0, 35)
 executeDesyncBtn.Position = UDim2.new(0.5, -55, 0.5, -5)
 executeDesyncBtn.Text = "EXECUTE"
 executeDesyncBtn.Font = Enum.Font.GothamBold
-executeDesyncBtn.TextSize = 14
-executeDesyncBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+executeDesyncBtn.TextSize = 16 -- INCREASED
 executeDesyncBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
-executeDesyncBtn.BorderSizePixel = 0
+executeDesyncBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 executeDesyncBtn.Parent = desyncPopup
 Instance.new("UICorner", executeDesyncBtn).CornerRadius = UDim.new(0, 6)
 
--- // Desync Main Button (The Trigger)
-local desyncBtn = Instance.new("TextButton")
-desyncBtn.Size = UDim2.new(0, 160, 0, 40)
-desyncBtn.Position = UDim2.new(0.5, -80, 0, 45)
-desyncBtn.Text = "Desync"
-desyncBtn.Font = Enum.Font.GothamBold
-desyncBtn.TextSize = 16
-desyncBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+-- // Helper function to create uniform buttons
+local function createButton(name, text, pos)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Size = UDim2.new(0, 190, 0, 42) -- Slightly larger height
+    btn.Position = pos
+    btn.Text = text
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 18 -- INCREASED ALL BUTTON TEXT
+    btn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.BorderSizePixel = 0
+    btn.Parent = frame
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+    return btn
+end
+
+-- // Create Buttons
+local desyncBtn = createButton("DesyncBtn", "Desync", UDim2.new(0.5, -95, 0, 50))
 desyncBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
-desyncBtn.BorderSizePixel = 0
-desyncBtn.Parent = frame
-Instance.new("UICorner", desyncBtn).CornerRadius = UDim.new(0, 10)
+desyncBtn.MouseButton1Click:Connect(function() desyncPopup.Visible = not desyncPopup.Visible end)
 
-desyncBtn.MouseButton1Click:Connect(function()
-    desyncPopup.Visible = not desyncPopup.Visible
-end)
-
--- // Auto Kick Toggle
-local autoKickToggle = Instance.new("TextButton")
-autoKickToggle.Size = UDim2.new(0, 160, 0, 40)
-autoKickToggle.Position = UDim2.new(0.5, -80, 0, 95)
-autoKickToggle.Text = "Auto Kick: OFF"
-autoKickToggle.Font = Enum.Font.GothamBold
-autoKickToggle.TextSize = 16
-autoKickToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-autoKickToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-autoKickToggle.BorderSizePixel = 0
-autoKickToggle.Parent = frame
-Instance.new("UICorner", autoKickToggle).CornerRadius = UDim.new(0, 10)
-
+local autoKickToggle = createButton("KickToggle", "Auto Kick: OFF", UDim2.new(0.5, -95, 0, 100))
 local isKickOn = false
 autoKickToggle.MouseButton1Click:Connect(function()
     isKickOn = not isKickOn
-    if isKickOn then
-        autoKickToggle.Text = "Auto Kick: ON"
-        autoKickToggle.BackgroundColor3 = Color3.fromRGB(0, 180, 100)
-        enableAutoKick()
-    else
-        autoKickToggle.Text = "Auto Kick: OFF"
-        autoKickToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-        disableAutoKick()
-    end
+    autoKickToggle.Text = isKickOn and "Auto Kick: ON" or "Auto Kick: OFF"
+    autoKickToggle.BackgroundColor3 = isKickOn and Color3.fromRGB(0, 180, 100) or Color3.fromRGB(80, 80, 80)
+    if isKickOn then enableAutoKick() else disableAutoKick() end
 end)
 
--- // God Mode Toggle
-local godToggle = Instance.new("TextButton")
-godToggle.Size = UDim2.new(0, 160, 0, 40)
-godToggle.Position = UDim2.new(0.5, -80, 0, 145)
-godToggle.Text = "God Mode: OFF"
-godToggle.Font = Enum.Font.GothamBold
-godToggle.TextSize = 16
-godToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-godToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-godToggle.BorderSizePixel = 0
-godToggle.Parent = frame
-Instance.new("UICorner", godToggle).CornerRadius = UDim.new(0, 10)
-
+local godToggle = createButton("GodToggle", "God Mode: OFF", UDim2.new(0.5, -95, 0, 150))
 godToggle.MouseButton1Click:Connect(function()
     godModeEnabled = not godModeEnabled
-    if godModeEnabled then
-        godToggle.Text = "God Mode: ON"
-        godToggle.BackgroundColor3 = Color3.fromRGB(0, 170, 100)
-        enableGodMode()
-    else
-        godToggle.Text = "God Mode: OFF"
-        godToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-        disableGodMode()
-    end
+    godToggle.Text = godModeEnabled and "God Mode: ON" or "God Mode: OFF"
+    godToggle.BackgroundColor3 = godModeEnabled and Color3.fromRGB(0, 170, 100) or Color3.fromRGB(80, 80, 80)
+    if godModeEnabled then enableGodMode() else disableGodMode() end
 end)
 
--- // Plot Timers Toggle
-local plotTimersToggle = Instance.new("TextButton")
-plotTimersToggle.Size = UDim2.new(0, 160, 0, 40)
-plotTimersToggle.Position = UDim2.new(0.5, -80, 0, 195)
-plotTimersToggle.Text = "Plot Timers: OFF"
-plotTimersToggle.Font = Enum.Font.GothamBold
-plotTimersToggle.TextSize = 16
-plotTimersToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-plotTimersToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-plotTimersToggle.BorderSizePixel = 0
-plotTimersToggle.Parent = frame
-Instance.new("UICorner", plotTimersToggle).CornerRadius = UDim.new(0, 10)
-
+local plotTimersToggle = createButton("PlotToggle", "Plot Timers: OFF", UDim2.new(0.5, -95, 0, 200))
 local isPlotTimersOn = false
 plotTimersToggle.MouseButton1Click:Connect(function()
     isPlotTimersOn = not isPlotTimersOn
-    if isPlotTimersOn then
-        plotTimersToggle.Text = "Plot Timers: ON"
-        plotTimersToggle.BackgroundColor3 = Color3.fromRGB(0, 170, 100)
-        enablePlotTimers()
-    else
-        plotTimersToggle.Text = "Plot Timers: OFF"
-        plotTimersToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-        disablePlotTimers()
-    end
+    plotTimersToggle.Text = isPlotTimersOn and "Plot Timers: ON" or "Plot Timers: OFF"
+    plotTimersToggle.BackgroundColor3 = isPlotTimersOn and Color3.fromRGB(0, 170, 100) or Color3.fromRGB(80, 80, 80)
+    if isPlotTimersOn then enablePlotTimers() else disablePlotTimers() end
+end)
+
+local infJumpToggle = createButton("JumpToggle", "Inf Jump: OFF", UDim2.new(0.5, -95, 0, 250))
+infJumpToggle.MouseButton1Click:Connect(function()
+    infinityJumpEnabled = not infinityJumpEnabled
+    infJumpToggle.Text = infinityJumpEnabled and "Inf Jump: ON" or "Inf Jump: OFF"
+    infJumpToggle.BackgroundColor3 = infinityJumpEnabled and Color3.fromRGB(0, 170, 100) or Color3.fromRGB(80, 80, 80)
+    if infinityJumpEnabled then enableInfJump() else disableInfJump() end
 end)
 
 -- Discord Label
 local discordLabel = Instance.new("TextLabel")
-discordLabel.Size = UDim2.new(1, -20, 0, 30)
-discordLabel.Position = UDim2.new(0, 10, 1, -40)
+discordLabel.Size = UDim2.new(1, -20, 0, 35)
+discordLabel.Position = UDim2.new(0, 10, 1, -45)
 discordLabel.BackgroundTransparency = 1
 discordLabel.Text = "discord.gg/JMRC5wXhV9"
 discordLabel.Font = Enum.Font.Gotham
-discordLabel.TextSize = 14
+discordLabel.TextSize = 16 -- INCREASED
 discordLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
 discordLabel.Parent = frame
 
--- // Desync Execution Function
+-- // Desync Execution Logic
 local function performDesync()
     local flags = {
         {"GameNetPVHeaderRotationalVelocityZeroCutoffExponent", "-5000"},
@@ -412,18 +381,12 @@ local function performDesync()
         {"LargeReplicatorSerializeWrite4", "true"},
     }
     for _, data in ipairs(flags) do
-        pcall(function()
-            if setfflag then
-                setfflag(data[1], data[2])
-            end
-        end)
+        pcall(function() if setfflag then setfflag(data[1], data[2]) end end)
     end
     local char = player.Character
     if not char then return end
     local humanoid = char:FindFirstChildWhichIsA("Humanoid")
-    if humanoid then
-        humanoid:ChangeState(Enum.HumanoidStateType.Dead)
-    end
+    if humanoid then humanoid:ChangeState(Enum.HumanoidStateType.Dead) end
     char:ClearAllChildren()
     local fakeModel = Instance.new("Model", workspace)
     player.Character = fakeModel
@@ -432,15 +395,13 @@ local function performDesync()
     fakeModel:Destroy()
 end
 
--- Connect desync ONLY to the button inside the popup
 executeDesyncBtn.MouseButton1Click:Connect(function()
     performDesync()
-    desyncPopup.Visible = false -- Close popup after executing
+    desyncPopup.Visible = false
 end)
 
 -- // Draggable GUI Logic
-local dragging = false
-local dragStart, startPos
+local dragging, dragStart, startPos
 frame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
@@ -460,8 +421,6 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Final Character check (Warning: Original script destroys character instantly)
+-- Final Character check
 local char = player.Character
-if char then
-    char:Destroy()
-end
+if char then char:Destroy() end
