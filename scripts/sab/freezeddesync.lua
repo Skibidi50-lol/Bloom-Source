@@ -1,5 +1,3 @@
---[[ Desync Only Script - Simplified from original Instant Steal ]]
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
@@ -11,8 +9,8 @@ gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 220, 0, 140)
-frame.Position = UDim2.new(0.5, -110, 0.5, -70)
+frame.Size = UDim2.new(0, 220, 0, 180)  -- Increased height to fit the new label
+frame.Position = UDim2.new(0.5, -110, 0.5, -90)
 frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 frame.BorderSizePixel = 0
 frame.Parent = gui
@@ -37,7 +35,7 @@ header.Parent = frame
 -- Desync Button
 local desyncBtn = Instance.new("TextButton")
 desyncBtn.Size = UDim2.new(0, 160, 0, 40)
-desyncBtn.Position = UDim2.new(0.5, -80, 0, 70)
+desyncBtn.Position = UDim2.new(0.5, -80, 0, 50)  -- Moved up slightly for spacing
 desyncBtn.Text = "Desync"
 desyncBtn.Font = Enum.Font.GothamBold
 desyncBtn.TextSize = 16
@@ -55,6 +53,17 @@ end)
 desyncBtn.MouseLeave:Connect(function()
     desyncBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
 end)
+
+-- Discord Invite Label (added below the button)
+local discordLabel = Instance.new("TextLabel")
+discordLabel.Size = UDim2.new(1, -20, 0, 30)
+discordLabel.Position = UDim2.new(0, 10, 0, 100)
+discordLabel.BackgroundTransparency = 1
+discordLabel.Text = "discord.gg/JMRC5wXhV9"
+discordLabel.Font = Enum.Font.Gotham
+discordLabel.TextSize = 16
+discordLabel.TextColor3 = Color3.fromRGB(100, 200, 255)  -- Light blue for visibility/link feel
+discordLabel.Parent = frame
 
 -- Desync Function (original flags + character fake swap)
 desyncBtn.MouseButton1Click:Connect(function()
@@ -100,7 +109,7 @@ desyncBtn.MouseButton1Click:Connect(function()
         {"MaxAcceptableUpdateDelay", "1"},
         {"LargeReplicatorSerializeWrite4", "true"},
     }
-    
+   
     for _, data in ipairs(flags) do
         pcall(function()
             if setfflag then
@@ -108,17 +117,17 @@ desyncBtn.MouseButton1Click:Connect(function()
             end
         end)
     end
-    
+   
     local char = player.Character
     if not char then return end
-    
+   
     local humanoid = char:FindFirstChildWhichIsA("Humanoid")
     if humanoid then
         humanoid:ChangeState(Enum.HumanoidStateType.Dead)
     end
-    
+   
     char:ClearAllChildren()
-    
+   
     local fakeModel = Instance.new("Model", workspace)
     player.Character = fakeModel
     task.wait()
