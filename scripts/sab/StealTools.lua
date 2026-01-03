@@ -1,3 +1,4 @@
+--[[ Desync Tool with Auto Kick & God Mode ]]
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -149,7 +150,7 @@ local header = Instance.new("TextLabel")
 header.Size = UDim2.new(1, -20, 0, 30)
 header.Position = UDim2.new(0, 10, 0, 8)
 header.BackgroundTransparency = 1
-header.Text = "BLOOMWARE"
+header.Text = "Desync Tool"
 header.Font = Enum.Font.GothamBold
 header.TextSize = 18
 header.TextColor3 = Color3.fromRGB(255, 255, 255)
