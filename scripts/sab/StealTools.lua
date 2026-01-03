@@ -85,6 +85,11 @@ local function disableGodMode()
     end
     godConnections = {}
     if godHeartbeat then godHeartbeat:Disconnect() godHeartbeat = nil end
+    
+    local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.BreakJointsOnDeath = true
+    end
     godModeEnabled = false
 end
 
@@ -206,6 +211,79 @@ local function enablePlotTimers()
     end)
 end
 
+-- Desync Toggle (FULL FLAG LIST - January 2026 Working Combo)
+local desyncEnabled = false
+
+local desyncFlags = {
+    {"GameNetPVHeaderRotationalVelocityZeroCutoffExponent", "-5000"},
+    {"LargeReplicatorWrite5", "true"},
+    {"LargeReplicatorEnabled9", "true"},
+    {"AngularVelociryLimit", "360"},
+    {"TimestepArbiterVelocityCriteriaThresholdTwoDt", "2147483646"},
+    {"S2PhysicsSenderRate", "15000"},
+    {"DisableDPIScale", "true"},
+    {"MaxDataPacketPerSend", "2147483647"},
+    {"ServerMaxBandwith", "52"},
+    {"PhysicsSenderMaxBandwidthBps", "20000"},
+    {"MaxTimestepMultiplierBuoyancy", "2147483647"},
+    {"SimOwnedNOUCountThresholdMillionth", "2147483647"},
+    {"MaxMissedWorldStepsRemembered", "-2147483648"},
+    {"CheckPVDifferencesForInterpolationMinVelThresholdStudsPerSecHundredth", "1"},
+    {"StreamJobNOUVolumeLengthCap", "2147483647"},
+    {"DebugSendDistInSteps", "-2147483648"},
+    {"MaxTimestepMultiplierAcceleration", "2147483647"},
+    {"LargeReplicatorRead5", "true"},
+    {"SimExplicitlyCappedTimestepMultiplier", "2147483646"},
+    {"GameNetDontSendRedundantNumTimes", "1"},
+    {"CheckPVLinearVelocityIntegrateVsDeltaPositionThresholdPercent", "1"},
+    {"CheckPVCachedRotVelThresholdPercent", "10"},
+    {"LargeReplicatorSerializeRead3", "true"},
+    {"ReplicationFocusNouExtentsSizeCutoffForPauseStuds", "2147483647"},
+    {"NextGenReplicatorEnabledWrite4", "true"},
+    {"CheckPVDifferencesForInterpolationMinRotVelThresholdRadsPerSecHundredth", "1"},
+    {"GameNetDontSendRedundantDeltaPositionMillionth", "1"},
+    {"InterpolationFrameVelocityThresholdMillionth", "5"},
+    {"StreamJobNOUVolumeCap", "2147483647"},
+    {"InterpolationFrameRotVelocityThresholdMillionth", "5"},
+    {"WorldStepMax", "30"},
+    {"TimestepArbiterHumanoidLinearVelThreshold", "1"},
+    {"InterpolationFramePositionThresholdMillionth", "5"},
+    {"TimestepArbiterHumanoidTurningVelThreshold", "1"},
+    {"MaxTimestepMultiplierContstraint", "2147483647"},
+    {"GameNetPVHeaderLinearVelocityZeroCutoffExponent", "-5000"},
+    {"CheckPVCachedVelThresholdPercent", "10"},
+    {"TimestepArbiterOmegaThou", "1073741823"},
+    {"MaxAcceptableUpdateDelay", "1"},
+    {"LargeReplicatorSerializeWrite4", "true"},
+    -- Modern additions (still working in early 2026 executors)
+    {"DFIntS2PhysicsSenderRate", "1"},
+    {"FIntPGSAngularDampingPermilPersecond", "0"},
+    {"DFIntPhysicsSenderMaxBandwidthBps", "10"},
+}
+
+local function applyDesyncFlags(enabled)
+    pcall(function()
+        if setfflag then
+            for _, flag in ipairs(desyncFlags) do
+                setfflag(flag[1], flag[2])
+            end
+        end
+    end)
+end
+
+local function toggleDesync()
+    desyncEnabled = not desyncEnabled
+    
+    if desyncEnabled then
+        desyncBtn.Text = "Desync: ON"
+        desyncBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 100)
+        applyDesyncFlags(true)
+    else
+        desyncBtn.Text = "Desync: OFF"
+        desyncBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+    end
+end
+
 -- GUI Setup
 local gui = Instance.new("ScreenGui")
 gui.Name = "BloomWARE"
@@ -236,11 +314,10 @@ header.TextSize = 18
 header.TextColor3 = Color3.fromRGB(255, 255, 255)
 header.Parent = frame
 
--- Desync Button
 local desyncBtn = Instance.new("TextButton")
 desyncBtn.Size = UDim2.new(0, 160, 0, 40)
 desyncBtn.Position = UDim2.new(0.5, -80, 0, 45)
-desyncBtn.Text = "Desync"
+desyncBtn.Text = "Desync: OFF"
 desyncBtn.Font = Enum.Font.GothamBold
 desyncBtn.TextSize = 16
 desyncBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -248,8 +325,15 @@ desyncBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
 desyncBtn.BorderSizePixel = 0
 desyncBtn.Parent = frame
 Instance.new("UICorner", desyncBtn).CornerRadius = UDim.new(0, 10)
-desyncBtn.MouseEnter:Connect(function() desyncBtn.BackgroundColor3 = Color3.fromRGB(220, 80, 80) end)
-desyncBtn.MouseLeave:Connect(function() desyncBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60) end)
+
+desyncBtn.MouseEnter:Connect(function() 
+    if not desyncEnabled then desyncBtn.BackgroundColor3 = Color3.fromRGB(220, 80, 80) end
+end)
+desyncBtn.MouseLeave:Connect(function() 
+    if not desyncEnabled then desyncBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60) end
+end)
+
+desyncBtn.MouseButton1Click:Connect(toggleDesync)
 
 -- Auto Kick Toggle
 local autoKickToggle = Instance.new("TextButton")
@@ -342,79 +426,6 @@ discordLabel.TextSize = 16
 discordLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
 discordLabel.Parent = frame
 
--- Desync Function (ONLY runs when button is clicked)
-local function performDesync()
-    local flags = {
-        {"GameNetPVHeaderRotationalVelocityZeroCutoffExponent", "-5000"},
-        {"LargeReplicatorWrite5", "true"},
-        {"LargeReplicatorEnabled9", "true"},
-        {"AngularVelociryLimit", "360"},
-        {"TimestepArbiterVelocityCriteriaThresholdTwoDt", "2147483646"},
-        {"S2PhysicsSenderRate", "15000"},
-        {"DisableDPIScale", "true"},
-        {"MaxDataPacketPerSend", "2147483647"},
-        {"ServerMaxBandwith", "52"},
-        {"PhysicsSenderMaxBandwidthBps", "20000"},
-        {"MaxTimestepMultiplierBuoyancy", "2147483647"},
-        {"SimOwnedNOUCountThresholdMillionth", "2147483647"},
-        {"MaxMissedWorldStepsRemembered", "-2147483648"},
-        {"CheckPVDifferencesForInterpolationMinVelThresholdStudsPerSecHundredth", "1"},
-        {"StreamJobNOUVolumeLengthCap", "2147483647"},
-        {"DebugSendDistInSteps", "-2147483648"},
-        {"MaxTimestepMultiplierAcceleration", "2147483647"},
-        {"LargeReplicatorRead5", "true"},
-        {"SimExplicitlyCappedTimestepMultiplier", "2147483646"},
-        {"GameNetDontSendRedundantNumTimes", "1"},
-        {"CheckPVLinearVelocityIntegrateVsDeltaPositionThresholdPercent", "1"},
-        {"CheckPVCachedRotVelThresholdPercent", "10"},
-        {"LargeReplicatorSerializeRead3", "true"},
-        {"ReplicationFocusNouExtentsSizeCutoffForPauseStuds", "2147483647"},
-        {"NextGenReplicatorEnabledWrite4", "true"},
-        {"CheckPVDifferencesForInterpolationMinRotVelThresholdRadsPerSecHundredth", "1"},
-        {"GameNetDontSendRedundantDeltaPositionMillionth", "1"},
-        {"InterpolationFrameVelocityThresholdMillionth", "5"},
-        {"StreamJobNOUVolumeCap", "2147483647"},
-        {"InterpolationFrameRotVelocityThresholdMillionth", "5"},
-        {"WorldStepMax", "30"},
-        {"TimestepArbiterHumanoidLinearVelThreshold", "1"},
-        {"InterpolationFramePositionThresholdMillionth", "5"},
-        {"TimestepArbiterHumanoidTurningVelThreshold", "1"},
-        {"MaxTimestepMultiplierContstraint", "2147483647"},
-        {"GameNetPVHeaderLinearVelocityZeroCutoffExponent", "-5000"},
-        {"CheckPVCachedVelThresholdPercent", "10"},
-        {"TimestepArbiterOmegaThou", "1073741823"},
-        {"MaxAcceptableUpdateDelay", "1"},
-        {"LargeReplicatorSerializeWrite4", "true"},
-    }
-
-    for _, data in ipairs(flags) do
-        pcall(function()
-            if setfflag then
-                setfflag(data[1], data[2])
-            end
-        end)
-    end
-
-    local char = player.Character
-    if not char then return end
-
-    local humanoid = char:FindFirstChildWhichIsA("Humanoid")
-    if humanoid then
-        humanoid:ChangeState(Enum.HumanoidStateType.Dead)
-    end
-
-    char:ClearAllChildren()
-
-    local fakeModel = Instance.new("Model", workspace)
-    player.Character = fakeModel
-    task.wait()
-    player.Character = char
-    fakeModel:Destroy()
-end
-
--- Connect desync ONLY on click (no auto-run)
-desyncBtn.MouseButton1Click:Connect(performDesync)
-
 -- Draggable GUI
 local dragging = false
 local dragStart, startPos
@@ -427,21 +438,17 @@ frame.InputBegan:Connect(function(input)
     end
 end)
 
-frame.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
+frame.InputChanged:Connect(function(input)
     if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - dragStart
         frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
+frame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
 
-local char = player.Character
-if char then
-    char:Destroy()
-end
+-- REMOVED accidental character destroy at the end
