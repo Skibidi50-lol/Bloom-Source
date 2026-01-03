@@ -1,10 +1,10 @@
---[[ Desync Tool with Auto Kick & God Mode ]]
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 
--- Auto Kick Variables
+-- Auto Kick
 local autoKickEnabled = false
 local kickKeyword = "you stole"
 local kickMessage = "You stole a pet!"
@@ -74,7 +74,7 @@ local function disableAutoKick()
     disconnectAllKick()
 end
 
--- God Mode Variables & Functions
+-- God Mode
 local godModeEnabled = false
 local godConnections = {}
 local godHeartbeat = nil
@@ -85,11 +85,6 @@ local function disableGodMode()
     end
     godConnections = {}
     if godHeartbeat then godHeartbeat:Disconnect() godHeartbeat = nil end
-    
-    local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        humanoid.BreakJointsOnDeath = true
-    end
     godModeEnabled = false
 end
 
@@ -126,6 +121,95 @@ local function enableGodMode()
     end))
 end
 
+-- Plot Timers ESP
+local plotTimersEnabled = false
+local plotTimers_RenderConnection = nil
+local plotTimers_OriginalProperties = {}
+
+local function disablePlotTimers()
+    plotTimersEnabled = false
+    if plotTimers_RenderConnection then
+        pcall(function() plotTimers_RenderConnection:Disconnect() end)
+        plotTimers_RenderConnection = nil
+    end
+    for label, props in pairs(plotTimers_OriginalProperties) do
+        pcall(function()
+            if label and label.Parent then
+                local bb = label:FindFirstAncestorWhichIsA("BillboardGui")
+                if not bb then return end
+                bb.Enabled = props.bb_enabled
+                bb.AlwaysOnTop = props.bb_alwaysOnTop
+                bb.Size = props.bb_size
+                bb.MaxDistance = props.bb_maxDistance
+                label.TextScaled = props.label_textScaled
+                label.TextWrapped = props.label_textWrapped
+                label.AutomaticSize = props.label_automaticSize
+                label.Size = props.label_size
+                label.TextSize = props.label_textSize
+            end
+        end)
+    end
+    table.clear(plotTimers_OriginalProperties)
+end
+
+local function enablePlotTimers()
+    disablePlotTimers()
+    plotTimersEnabled = true
+    local camera = Workspace.CurrentCamera
+    local DISTANCE_THRESHOLD = 45
+    local SCALE_START, SCALE_RANGE = 100, 300
+    local MIN_TEXT_SIZE, MAX_TEXT_SIZE = 30, 36
+    local lastUpdate = 0
+    
+    plotTimers_RenderConnection = RunService.RenderStepped:Connect(function()
+        if not plotTimersEnabled then return end
+        if tick() - lastUpdate < 0.1 then return end
+        lastUpdate = tick()
+        
+        for _, label in ipairs(Workspace.Plots:GetDescendants()) do
+            if label:IsA("TextLabel") and label.Name == "RemainingTime" then
+                local bb = label:FindFirstAncestorWhichIsA("BillboardGui")
+                if not bb then continue end
+                local model = bb:FindFirstAncestorWhichIsA("Model")
+                if not model then continue end
+                local basePart = model:FindFirstChildWhichIsA("BasePart", true)
+                if not basePart then continue end
+                
+                if not plotTimers_OriginalProperties[label] then
+                    plotTimers_OriginalProperties[label] = {
+                        bb_enabled = bb.Enabled,
+                        bb_alwaysOnTop = bb.AlwaysOnTop,
+                        bb_size = bb.Size,
+                        bb_maxDistance = bb.MaxDistance,
+                        label_textScaled = label.TextScaled,
+                        label_textWrapped = label.TextWrapped,
+                        label_automaticSize = label.AutomaticSize,
+                        label_size = label.Size,
+                        label_textSize = label.TextSize,
+                    }
+                end
+                
+                bb.MaxDistance = 10000
+                bb.AlwaysOnTop = true
+                bb.Size = UDim2.new(0, 300, 0, 150)
+                
+                local distance = (camera.CFrame.Position - basePart.Position).Magnitude
+                if distance > DISTANCE_THRESHOLD and basePart.Position.Y >= 0 then
+                    bb.Enabled = false
+                else
+                    bb.Enabled = true
+                    local t = math.clamp((distance - SCALE_START) / SCALE_RANGE, 0, 1)
+                    label.TextSize = MIN_TEXT_SIZE + (MAX_TEXT_SIZE - MIN_TEXT_SIZE) * t
+                end
+            end
+        end
+    end)
+end
+
+local function togglePlotTimers(enabled)
+    if enabled then enablePlotTimers() else disablePlotTimers() end
+end
+
 -- GUI Setup
 local gui = Instance.new("ScreenGui")
 gui.Name = "DesyncHUD"
@@ -133,8 +217,8 @@ gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 220, 0, 240)
-frame.Position = UDim2.new(0.5, -110, 0.5, -120)
+frame.Size = UDim2.new(0, 220, 0, 290)  -- Extra space for new toggle
+frame.Position = UDim2.new(0.5, -110, 0.5, -145)
 frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 frame.BorderSizePixel = 0
 frame.Parent = gui
@@ -224,7 +308,34 @@ godToggle.MouseButton1Click:Connect(function()
     end
 end)
 
--- Discord Label (only thing at the bottom)
+-- Plot Timers Toggle
+local plotTimersToggle = Instance.new("TextButton")
+plotTimersToggle.Size = UDim2.new(0, 160, 0, 40)
+plotTimersToggle.Position = UDim2.new(0.5, -80, 0, 195)
+plotTimersToggle.Text = "Plot Timers: OFF"
+plotTimersToggle.Font = Enum.Font.GothamBold
+plotTimersToggle.TextSize = 16
+plotTimersToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+plotTimersToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+plotTimersToggle.BorderSizePixel = 0
+plotTimersToggle.Parent = frame
+Instance.new("UICorner", plotTimersToggle).CornerRadius = UDim.new(0, 10)
+
+local isPlotTimersOn = false
+plotTimersToggle.MouseButton1Click:Connect(function()
+    isPlotTimersOn = not isPlotTimersOn
+    if isPlotTimersOn then
+        plotTimersToggle.Text = "Plot Timers: ON"
+        plotTimersToggle.BackgroundColor3 = Color3.fromRGB(0, 170, 100)
+        togglePlotTimers(true)
+    else
+        plotTimersToggle.Text = "Plot Timers: OFF"
+        plotTimersToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+        togglePlotTimers(false)
+    end
+end)
+
+-- Discord Label
 local discordLabel = Instance.new("TextLabel")
 discordLabel.Size = UDim2.new(1, -20, 0, 30)
 discordLabel.Position = UDim2.new(0, 10, 1, -40)
@@ -305,7 +416,7 @@ desyncBtn.MouseButton1Click:Connect(function()
     fakeModel:Destroy()
 end)
 
--- Draggable
+-- Draggable GUI
 local dragging = false
 local dragStart, startPos
 
