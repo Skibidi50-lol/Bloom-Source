@@ -208,7 +208,7 @@ end
 
 -- GUI Setup
 local gui = Instance.new("ScreenGui")
-gui.Name = "DesyncHUD"
+gui.Name = "BloomWARE"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
@@ -230,7 +230,7 @@ local header = Instance.new("TextLabel")
 header.Size = UDim2.new(1, -20, 0, 30)
 header.Position = UDim2.new(0, 10, 0, 8)
 header.BackgroundTransparency = 1
-header.Text = "Desync Tool"
+header.Text = "BLOOMWARE - SAB"
 header.Font = Enum.Font.GothamBold
 header.TextSize = 18
 header.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -439,4 +439,9 @@ UserInputService.InputChanged:Connect(function(input)
         frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
-game.Players.LocalPlayer.Character.Humanoid.Health = 0
+
+
+local char = player.Character
+if char then
+    char:Destroy()
+end
