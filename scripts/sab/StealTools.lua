@@ -1,11 +1,3 @@
-Here's the fixed version of the script. The issue was that the desync function was accidentally being called immediately when the script loads (due to an extra pair of parentheses at the end of the MouseButton1Click connection in a previous version). I've cleaned it up completely and ensured nothing auto-triggers on execution.
-Now:
-
-Desync only activates when you click the button
-All toggles start OFF
-No features auto-enable
-
-Lua--[[ Desync Tool with Auto Kick, God Mode & Plot Timers ESP - FIXED ]]
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
