@@ -112,6 +112,14 @@ local PrisonAPI = {
         OutlineTrans = 0.1,
         OffsetY = 2,
     },
+    ChineseHat = {
+        Enabled = false,
+        Width = 1.6,
+        Height = 1.6,
+        Color = Color3.fromRGB(240, 200, 120),
+        Transparency = 0.4,
+        ShowSelf = false,
+    },
     Aimbot = {
         Enabled = false,
         TeamCheck = false,
@@ -121,7 +129,10 @@ local PrisonAPI = {
         TargetPart = "Head",
         ShowFOV = false,
         FOVColor = Color3.fromRGB(255, 0, 150),
-        ThirdPerson = false
+        ThirdPerson = false,
+        TargetInmates = true,
+        TargetGuards = true,
+        TargetCriminals = true,
     },
     SilentAim = {
         Enabled = false,
@@ -1506,6 +1517,59 @@ for _, p in ipairs(Players:GetPlayers()) do
     onCharacterAdded(p)
 end
 Players.PlayerAdded:Connect(onCharacterAdded)
+--Chinese Hat
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local function applyChineseHat(player, character)
+    local config = PrisonAPI.ChineseHat
+    
+    if not config.Enabled then return end
+    if not config.ShowSelf and player == LocalPlayer then return end
+    if not character then return end
+
+    local head = character:WaitForChild("Head", 10)
+    if not head then return end
+    
+    -- Remove old hat to prevent stacking on respawn
+    local existing = head:FindFirstChild("ChineseHatESP")
+    if existing then existing:Destroy() end
+
+    local hat = Instance.new("ConeHandleAdornment")
+    hat.Name = "ChineseHatESP"
+    hat.Adornee = head
+    hat.Parent = head
+    
+    hat.Height = config.Height
+    hat.Radius = config.Width
+    hat.Color3 = config.Color
+    hat.Transparency = config.Transparency
+    
+    -- Position & Rotation (Pointed Up)
+    hat.CFrame = CFrame.new(0, 0.5, 0) * CFrame.Angles(math.rad(90), 0, 0)
+
+    -- ESP Properties
+    hat.AlwaysOnTop = true
+    hat.ZIndex = 5
+end
+
+-- Monitor Players (Joins & Deaths)
+local function onPlayerAdded(player)
+    player.CharacterAdded:Connect(function(character)
+        task.wait(0.2) -- Brief delay to ensure character is fully ready
+        applyChineseHat(player, character)
+    end)
+    
+    if player.Character then
+        applyChineseHat(player, player.Character)
+    end
+end
+
+-- Initialize
+for _, p in ipairs(Players:GetPlayers()) do
+    onPlayerAdded(p)
+end
+Players.PlayerAdded:Connect(onPlayerAdded)
 --hitbox wwwwwww
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -1993,7 +2057,7 @@ aimbotBox:AddToggle("TeamCheckToggle", {
     Default = false,
     Tooltip = "Only Aim When The Target Is Not In Your Team"
 }):OnChanged(function(Value)
-   PrisonAPI.Aimbot.TeamCheck = Value
+   PrisonAPI.Aimbot.WallCheck = Value
 end)
 
 aimbotBox:AddSlider("FOVRadius", {
@@ -2717,6 +2781,133 @@ silentBox:AddSlider("SAFOVSize", {
 }):OnChanged(function(Value)
     PrisonAPI.SilentAim.FOV = Value
 end)
+
+silentBox:AddButton({
+    Text = "Mobile Silent Aim",
+    Func = function()
+        -- Silent Aim
+        local camera = workspace.CurrentCamera
+        local players = game:GetService("Players")
+        local runservice = game:GetService("RunService")
+        local userinputservice = game:GetService("UserInputService")
+        local localplayer = players.LocalPlayer
+
+        local closesthitpart = nil
+
+        local function getdirection(origin, position)
+            return (position - origin).Unit
+        end
+
+        local function isvisible(targetpart)
+            local character = localplayer.Character
+            if not character then return false end
+
+            local origin = camera.CFrame.Position
+            local direction = targetpart.Position - origin
+
+            local raycastparams = RaycastParams.new()
+            raycastparams.FilterType = Enum.RaycastFilterType.Exclude
+            raycastparams.FilterDescendantsInstances = {character, camera}
+            raycastparams.IgnoreWater = true
+
+            local result = workspace:Raycast(origin, direction, raycastparams)
+            if result then
+                return result.Instance:IsDescendantOf(targetpart.Parent)
+            end
+
+            return true
+        end
+
+        local function issameteam(player)
+            if not localplayer.Team or not player.Team then
+                return false
+            end
+            return localplayer.Team == player.Team
+        end
+
+        local function getclosestplayer()
+            local closestpart = nil
+            local closestdistance = math.huge
+            local mousepos = userinputservice:GetMouseLocation()
+
+            for _, player in ipairs(players:GetPlayers()) do
+                if player ~= localplayer and player.Character then
+                    if issameteam(player) then continue end
+
+                    local head = player.Character:FindFirstChild("Head")
+                    local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+
+                    if head and humanoid and humanoid.Health > 0 then
+                        local screenpos, onscreen = camera:WorldToViewportPoint(head.Position)
+                        if onscreen and isvisible(head) then
+                            local dist = (Vector2.new(screenpos.X, screenpos.Y) - mousepos).Magnitude
+                            if dist < closestdistance then
+                                closestdistance = dist
+                                closestpart = head
+                            end
+                        end
+                    end
+                end
+            end
+
+            return closestpart
+        end
+
+        runservice.Heartbeat:Connect(function()
+            closesthitpart = getclosestplayer()
+        end)
+
+        local oldnamecall
+        oldnamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
+            local method = getnamecallmethod()
+            local args = {...}
+            local self = args[1]
+
+            if self == workspace and not checkcaller() and method == "Raycast" then
+                if closesthitpart then
+                    local origin = args[2]
+                    local direction = getdirection(origin, closesthitpart.Position) * 1000
+                    args[3] = direction
+                    return oldnamecall(unpack(args))
+                end
+            end
+
+            return oldnamecall(...)
+        end))
+
+        wait(1)
+
+        --  Fast Shoot
+        local namecall
+        namecall = hookmetamethod(game, "__namecall", function(self,...)
+            local method = getnamecallmethod()
+            if method == "GetAttributes" then
+                local result = namecall(self, ...)
+                result.AutoFire = true
+                result.FireRate = 0
+                result.Range = 555
+                result.Spread = 555
+                print(self,"modded")
+                return result
+            end
+            return namecall(self, ...)
+        end)
+
+        wait(1)
+
+        --  Loop Backpack Enabled
+        task.spawn(function()
+            local Player = game.Players.LocalPlayer
+            while true do
+                Player:SetAttribute("BackpackEnabled", true)
+                task.wait(0.1)
+            end
+        end)
+
+        wait(1)
+    end
+})
+
 local silentTBox = Tabs.Rage:AddRightGroupbox("Target Aim", "target")
 
 silentTBox:AddToggle("InSAToggle", {
