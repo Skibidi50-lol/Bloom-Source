@@ -1,50 +1,10 @@
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
-local PlayerGui = player:WaitForChild("PlayerGui")
-local UserInputService = game:GetService("UserInputService")
 
-
--- Character setup
-local character = player.Character or player.CharacterAdded:Wait()
-local root = character:WaitForChild("HumanoidRootPart")
-local humanoid = character:WaitForChild("Humanoid")
-
-
-local Luna = loadstring(game:HttpGet("https://raw.nebulasoftworks.xyz/luna", true))()
-local Window = Luna:CreateWindow({
-    Name = "BloomWare - SAB", -- This Is Title Of Your Window
-    Subtitle = "Version 1.0", -- A Gray Subtitle next To the main title.
-    LogoID = "82795327169782", -- The Asset ID of your logo. Set to nil if you do not have a logo for Luna to use.
-    LoadingEnabled = true, -- Whether to enable the loading animation. Set to false if you do not want the loading screen or have your own custom one.
-    LoadingTitle = "Loading....", -- Header for loading screen
-    LoadingSubtitle = "by Skibidi50-lol", -- Subtitle for loading screen
-
-    ConfigSettings = {
-        RootFolder = nil, -- The Root Folder Is Only If You Have A Hub With Multiple Game Scripts and u may remove it. DO NOT ADD A SLASH
-        ConfigFolder = "BloomHub" -- The Name Of The Folder Where Luna Will Store Configs For This Script. DO NOT ADD A SLASH
-    },
-
-    KeySystem = false, -- As Of Beta 6, Luna Has officially Implemented A Key System!
-    KeySettings = {
-        Title = "Luna Example Key",
-        Subtitle = "Key System",
-        Note = "Best Key System Ever! Also, Please Use A HWID Keysystem like Pelican, Luarmor etc. that provide key strings based on your HWID since putting a simple string is very easy to bypass",
-        SaveInRoot = false, -- Enabling will save the key in your RootFolder (YOU MUST HAVE ONE BEFORE ENABLING THIS OPTION)
-        SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
-        Key = {"Example Key"}, -- List of keys that will be accepted by the system, please use a system like Pelican or Luarmor that provide key strings based on your HWID since putting a simple string is very easy to bypass
-        SecondAction = {
-            Enabled = true, -- Set to false if you do not want a second action,
-            Type = "Link", -- Link / Discord.
-            Parameter = "" -- If Type is Discord, then put your invite link (DO NOT PUT DISCORD.GG/). Else, put the full link of your key system here.
-        }
-    }
-})
-
---auto kick
+-- // Auto Kick Logic
 local autoKickEnabled = false
 local kickKeyword = "you stole"
 local kickMessage = "You stole a pet!"
@@ -111,237 +71,397 @@ local function disableAutoKick()
     autoKickEnabled = false
     disconnectAllKick()
 end
---jump boost
-local boostJumpEnabled = false
-local boostJumpConnection = nil
 
-local jumpCooldown = false
+-- // God Mode Logic
+local godModeEnabled = false
+local godConnections = {}
+local godHeartbeat = nil
 
-local BASE_BOOST = 55
-local SPEED_SCALE = 0.45
-local COOLDOWN_TIME = 0.25
+local function disableGodMode()
+    for _, conn in ipairs(godConnections) do
+        if conn.Connected then conn:Disconnect() end
+    end
+    godConnections = {}
+    if godHeartbeat then godHeartbeat:Disconnect() godHeartbeat = nil end
+    godModeEnabled = false
+end
 
-local function applyBoostJump()
-    if jumpCooldown or not humanoid or not root then return end
-    jumpCooldown = true
-
-    local moveSpeed = humanoid.MoveDirection.Magnitude
-    local boost = BASE_BOOST + (moveSpeed * BASE_BOOST * SPEED_SCALE)
-
-    root.AssemblyLinearVelocity = Vector3.new(
-        root.AssemblyLinearVelocity.X,
-        boost,
-        root.AssemblyLinearVelocity.Z
-    )
-
-    local fallConn
-    fallConn = RunService.Stepped:Connect(function()
-        if not boostJumpEnabled or not humanoid or not root then
-            fallConn:Disconnect()
-            return
+local function applyGodMode(character)
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+    humanoid.BreakJointsOnDeath = false
+    table.insert(godConnections, humanoid:GetPropertyChangedSignal("Health"):Connect(function()
+        if humanoid.Health < humanoid.MaxHealth then
+            humanoid.Health = humanoid.MaxHealth
         end
-
-        if humanoid:GetState() == Enum.HumanoidStateType.Freefall then
-            local v = root.AssemblyLinearVelocity
-            root.AssemblyLinearVelocity = Vector3.new(
-                v.X,
-                math.clamp(v.Y, -28, 115),
-                v.Z
-            )
-        else
-            fallConn:Disconnect()
+    end))
+    if godHeartbeat then godHeartbeat:Disconnect() end
+    godHeartbeat = RunService.Heartbeat:Connect(function()
+        if humanoid and humanoid.Parent and humanoid.Health < humanoid.MaxHealth then
+            humanoid.Health = humanoid.MaxHealth
         end
-    end)
-
-    task.delay(COOLDOWN_TIME, function()
-        jumpCooldown = false
     end)
 end
 
+local function enableGodMode()
+    disableGodMode()
+    godModeEnabled = true
+    local char = player.Character or player.CharacterAdded:Wait()
+    applyGodMode(char)
+    table.insert(godConnections, player.CharacterAdded:Connect(function(newChar)
+        task.wait(0.5)
+        applyGodMode(newChar)
+    end))
+end
 
-local function toggleBoostJump(enabled)
-    boostJumpEnabled = enabled
+-- // Plot Timers ESP
+local plotTimersEnabled = false
+local plotTimers_RenderConnection = nil
+local plotTimers_OriginalProperties = {}
 
-    if enabled then
-        if boostJumpConnection then
-            boostJumpConnection:Disconnect()
+local function disablePlotTimers()
+    plotTimersEnabled = false
+    if plotTimers_RenderConnection then
+        pcall(function() plotTimers_RenderConnection:Disconnect() end)
+        plotTimers_RenderConnection = nil
+    end
+    for label, props in pairs(plotTimers_OriginalProperties) do
+        pcall(function()
+            if label and label.Parent then
+                local bb = label:FindFirstAncestorWhichIsA("BillboardGui")
+                if not bb then return end
+                bb.Enabled = props.bb_enabled
+                bb.AlwaysOnTop = props.bb_alwaysOnTop
+                bb.Size = props.bb_size
+                bb.MaxDistance = props.bb_maxDistance
+                label.TextScaled = props.label_textScaled
+                label.TextWrapped = props.label_textWrapped
+                label.AutomaticSize = props.label_automaticSize
+                label.Size = props.label_size
+                label.TextSize = props.label_textSize
+            end
+        end)
+    end
+    table.clear(plotTimers_OriginalProperties)
+end
+
+local function enablePlotTimers()
+    disablePlotTimers()
+    plotTimersEnabled = true
+    local camera = Workspace.CurrentCamera
+    local DISTANCE_THRESHOLD = 45
+    local SCALE_START, SCALE_RANGE = 100, 300
+    local MIN_TEXT_SIZE, MAX_TEXT_SIZE = 30, 36
+    local lastUpdate = 0
+    plotTimers_RenderConnection = RunService.RenderStepped:Connect(function()
+        if not plotTimersEnabled then return end
+        if tick() - lastUpdate < 0.1 then return end
+        lastUpdate = tick()
+        for _, label in ipairs(Workspace.Plots:GetDescendants()) do
+            if label:IsA("TextLabel") and label.Name == "RemainingTime" then
+                local bb = label:FindFirstAncestorWhichIsA("BillboardGui")
+                if not bb then continue end
+                local model = bb:FindFirstAncestorWhichIsA("Model")
+                if not model then continue end
+                local basePart = model:FindFirstChildWhichIsA("BasePart", true)
+                if not basePart then continue end
+                if not plotTimers_OriginalProperties[label] then
+                    plotTimers_OriginalProperties[label] = {
+                        bb_enabled = bb.Enabled,
+                        bb_alwaysOnTop = bb.AlwaysOnTop,
+                        bb_size = bb.Size,
+                        bb_maxDistance = bb.MaxDistance,
+                        label_textScaled = label.TextScaled,
+                        label_textWrapped = label.TextWrapped,
+                        label_automaticSize = label.AutomaticSize,
+                        label_size = label.Size,
+                        label_textSize = label.TextSize,
+                    }
+                end
+                bb.MaxDistance = 10000
+                bb.AlwaysOnTop = true
+                bb.Size = UDim2.new(0, 300, 0, 150)
+                local distance = (camera.CFrame.Position - basePart.Position).Magnitude
+                if distance > DISTANCE_THRESHOLD and basePart.Position.Y >= 0 then
+                    bb.Enabled = false
+                else
+                    bb.Enabled = true
+                    local t = math.clamp((distance - SCALE_START) / SCALE_RANGE, 0, 1)
+                    label.TextSize = MIN_TEXT_SIZE + (MAX_TEXT_SIZE - MIN_TEXT_SIZE) * t
+                end
+            end
         end
+    end)
+end
 
-        boostJumpConnection =
-            UserInputService.JumpRequest:Connect(applyBoostJump)
+-- // Main GUI Setup
+local gui = Instance.new("ScreenGui")
+gui.Name = "BloomWARE"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
 
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 220, 0, 290)
+frame.Position = UDim2.new(0.5, -110, 0.5, -145)
+frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(120, 120, 120)
+stroke.Thickness = 2
+stroke.Parent = frame
+
+local header = Instance.new("TextLabel")
+header.Size = UDim2.new(1, -20, 0, 30)
+header.Position = UDim2.new(0, 10, 0, 8)
+header.BackgroundTransparency = 1
+header.Text = "BLOOMWARE - SAB"
+header.Font = Enum.Font.GothamBold
+header.TextSize = 18
+header.TextColor3 = Color3.fromRGB(255, 255, 255)
+header.Parent = frame
+
+-- // NEW: Desync Small Frame (The Popup)
+local desyncPopup = Instance.new("Frame")
+desyncPopup.Size = UDim2.new(0, 140, 0, 80)
+desyncPopup.Position = UDim2.new(1, 10, 0, 0) -- Positioned to the right of main frame
+desyncPopup.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+desyncPopup.BorderSizePixel = 0
+desyncPopup.Visible = false -- Hidden by default
+desyncPopup.Parent = frame
+
+Instance.new("UICorner", desyncPopup).CornerRadius = UDim.new(0, 10)
+local popupStroke = Instance.new("UIStroke")
+popupStroke.Color = Color3.fromRGB(200, 60, 60)
+popupStroke.Thickness = 2
+popupStroke.Parent = desyncPopup
+
+local popupTitle = Instance.new("TextLabel")
+popupTitle.Size = UDim2.new(1, 0, 0, 25)
+popupTitle.BackgroundTransparency = 1
+popupTitle.Text = "Desync Menu"
+popupTitle.Font = Enum.Font.GothamBold
+popupTitle.TextSize = 12
+popupTitle.TextColor3 = Color3.fromRGB(200, 200, 200)
+popupTitle.Parent = desyncPopup
+
+local executeDesyncBtn = Instance.new("TextButton")
+executeDesyncBtn.Size = UDim2.new(0, 110, 0, 35)
+executeDesyncBtn.Position = UDim2.new(0.5, -55, 0.5, -5)
+executeDesyncBtn.Text = "EXECUTE"
+executeDesyncBtn.Font = Enum.Font.GothamBold
+executeDesyncBtn.TextSize = 14
+executeDesyncBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+executeDesyncBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+executeDesyncBtn.BorderSizePixel = 0
+executeDesyncBtn.Parent = desyncPopup
+Instance.new("UICorner", executeDesyncBtn).CornerRadius = UDim.new(0, 6)
+
+-- // Desync Main Button (The Trigger)
+local desyncBtn = Instance.new("TextButton")
+desyncBtn.Size = UDim2.new(0, 160, 0, 40)
+desyncBtn.Position = UDim2.new(0.5, -80, 0, 45)
+desyncBtn.Text = "Desync"
+desyncBtn.Font = Enum.Font.GothamBold
+desyncBtn.TextSize = 16
+desyncBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+desyncBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+desyncBtn.BorderSizePixel = 0
+desyncBtn.Parent = frame
+Instance.new("UICorner", desyncBtn).CornerRadius = UDim.new(0, 10)
+
+desyncBtn.MouseButton1Click:Connect(function()
+    desyncPopup.Visible = not desyncPopup.Visible
+end)
+
+-- // Auto Kick Toggle
+local autoKickToggle = Instance.new("TextButton")
+autoKickToggle.Size = UDim2.new(0, 160, 0, 40)
+autoKickToggle.Position = UDim2.new(0.5, -80, 0, 95)
+autoKickToggle.Text = "Auto Kick: OFF"
+autoKickToggle.Font = Enum.Font.GothamBold
+autoKickToggle.TextSize = 16
+autoKickToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoKickToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+autoKickToggle.BorderSizePixel = 0
+autoKickToggle.Parent = frame
+Instance.new("UICorner", autoKickToggle).CornerRadius = UDim.new(0, 10)
+
+local isKickOn = false
+autoKickToggle.MouseButton1Click:Connect(function()
+    isKickOn = not isKickOn
+    if isKickOn then
+        autoKickToggle.Text = "Auto Kick: ON"
+        autoKickToggle.BackgroundColor3 = Color3.fromRGB(0, 180, 100)
+        enableAutoKick()
     else
-        if boostJumpConnection then
-            boostJumpConnection:Disconnect()
-            boostJumpConnection = nil
-        end
+        autoKickToggle.Text = "Auto Kick: OFF"
+        autoKickToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+        disableAutoKick()
     end
-end
---No anim
-local animationsDisabled = false
-local animationConnections = {}
-
-local function clearAnimConnections()
-	for _, c in ipairs(animationConnections) do
-		if c.Connected then c:Disconnect() end
-	end
-	table.clear(animationConnections)
-end
-
-local function applyNoAnimations(humanoid)
-	if not humanoid then return end
-
-	-- stop everything currently running
-	for _, track in ipairs(humanoid:GetPlayingAnimationTracks()) do
-		track:Stop()
-	end
-
-	-- block new animations
-	local conn = humanoid.AnimationPlayed:Connect(function(track)
-        if animationsDisabled then
-            track:Stop()
-        end
-	end)
-
-	table.insert(animationConnections, conn)
-end
-
-local function toggleNoAnimations(enabled)
-	animationsDisabled = enabled
-	clearAnimConnections()
-
-	local character = player.Character
-	if not character then return end
-
-	local humanoid = character:FindFirstChild("Humanoid")
-	if not humanoid then return end
-
-	if enabled then
-		applyNoAnimations(humanoid)
-	end
-end
-
--- re-apply after respawn when enabled
-player.CharacterAdded:Connect(function(char)
-	if not animationsDisabled then return end
-	local humanoid = char:WaitForChild("Humanoid")
-	applyNoAnimations(humanoid)
 end)
 
+-- // God Mode Toggle
+local godToggle = Instance.new("TextButton")
+godToggle.Size = UDim2.new(0, 160, 0, 40)
+godToggle.Position = UDim2.new(0.5, -80, 0, 145)
+godToggle.Text = "God Mode: OFF"
+godToggle.Font = Enum.Font.GothamBold
+godToggle.TextSize = 16
+godToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+godToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+godToggle.BorderSizePixel = 0
+godToggle.Parent = frame
+Instance.new("UICorner", godToggle).CornerRadius = UDim.new(0, 10)
 
---steal tab
-local StealTab = Window:CreateTab({
-    Name = "Stealer",
-    Icon = "view_in_ar",
-    ImageSource = "Material",
-    ShowTitle = true -- This will determine whether the big header text in the tab will show
-})
-
-StealTab:CreateSection("Steal Helper")
-
-StealTab:CreateButton({
-    Name = "Desync No Tool",
-    Description = "May Causing Bugs",
-    Callback = function()
-        function performDesync()
-            local flags = {
-                {"GameNetPVHeaderRotationalVelocityZeroCutoffExponent", "-5000"},
-                {"LargeReplicatorWrite5", "true"},
-                {"LargeReplicatorEnabled9", "true"},
-                {"AngularVelociryLimit", "360"},
-                {"TimestepArbiterVelocityCriteriaThresholdTwoDt", "2147483646"},
-                {"S2PhysicsSenderRate", "15000"},
-                {"DisableDPIScale", "true"},
-                {"MaxDataPacketPerSend", "2147483647"},
-                {"ServerMaxBandwith", "52"},
-                {"PhysicsSenderMaxBandwidthBps", "20000"},
-                {"MaxTimestepMultiplierBuoyancy", "2147483647"},
-                {"SimOwnedNOUCountThresholdMillionth", "2147483647"},
-                {"MaxMissedWorldStepsRemembered", "-2147483648"},
-                {"CheckPVDifferencesForInterpolationMinVelThresholdStudsPerSecHundredth", "1"},
-                {"StreamJobNOUVolumeLengthCap", "2147483647"},
-                {"DebugSendDistInSteps", "-2147483648"},
-                {"MaxTimestepMultiplierAcceleration", "2147483647"},
-                {"LargeReplicatorRead5", "true"},
-                {"SimExplicitlyCappedTimestepMultiplier", "2147483646"},
-                {"GameNetDontSendRedundantNumTimes", "1"},
-                {"CheckPVLinearVelocityIntegrateVsDeltaPositionThresholdPercent", "1"},
-                {"CheckPVCachedRotVelThresholdPercent", "10"},
-                {"LargeReplicatorSerializeRead3", "true"},
-                {"ReplicationFocusNouExtentsSizeCutoffForPauseStuds", "2147483647"},
-                {"NextGenReplicatorEnabledWrite4", "true"},
-                {"CheckPVDifferencesForInterpolationMinRotVelThresholdRadsPerSecHundredth", "1"},
-                {"GameNetDontSendRedundantDeltaPositionMillionth", "1"},
-                {"InterpolationFrameVelocityThresholdMillionth", "5"},
-                {"StreamJobNOUVolumeCap", "2147483647"},
-                {"InterpolationFrameRotVelocityThresholdMillionth", "5"},
-                {"WorldStepMax", "30"},
-                {"TimestepArbiterHumanoidLinearVelThreshold", "1"},
-                {"InterpolationFramePositionThresholdMillionth", "5"},
-                {"TimestepArbiterHumanoidTurningVelThreshold", "1"},
-                {"MaxTimestepMultiplierContstraint", "2147483647"},
-                {"GameNetPVHeaderLinearVelocityZeroCutoffExponent", "-5000"},
-                {"CheckPVCachedVelThresholdPercent", "10"},
-                {"TimestepArbiterOmegaThou", "1073741823"},
-                {"MaxAcceptableUpdateDelay", "1"},
-                {"LargeReplicatorSerializeWrite4", "true"},
-            }
-            for _, data in ipairs(flags) do
-                pcall(function()
-                    if setfflag then
-                        setfflag(data[1], data[2])
-                    end
-                end)
-            end
-            local char = player.Character
-            if not char then return end
-            local humanoid = char:FindFirstChildWhichIsA("Humanoid")
-            if humanoid then
-                humanoid:ChangeState(Enum.HumanoidStateType.Dead)
-            end
-            char:ClearAllChildren()
-            local fakeModel = Instance.new("Model", workspace)
-            player.Character = fakeModel
-            task.wait()
-            player.Character = char
-            fakeModel:Destroy()
-        end
-        performDesync()
+godToggle.MouseButton1Click:Connect(function()
+    godModeEnabled = not godModeEnabled
+    if godModeEnabled then
+        godToggle.Text = "God Mode: ON"
+        godToggle.BackgroundColor3 = Color3.fromRGB(0, 170, 100)
+        enableGodMode()
+    else
+        godToggle.Text = "God Mode: OFF"
+        godToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+        disableGodMode()
     end
-})
-
-StealTab:CreateToggle({
-    Name = "Auto Kick After Steal",
-    Description = nil,
-    CurrentValue = false,
-    Callback = function(Value)
-        autoKickEnabled = Value
-    end
-}, "AutoKickToggle")
-
-StealTab:CreateToggle({
-    Name = "Infinite Jump",
-    Description = nil,
-    CurrentValue = false,
-    Callback = function(Value)
-        boostJumpEnabled = Value
-        toggleBoostJump(Value)
-    end
-}, "InfJumpToggle")
-
-StealTab:CreateToggle({
-    Name = "Remove Animations",
-    Description = "Remove All Of Your Animations",
-    CurrentValue = false,
-    Callback = function(Value)
-        animationsDisabled = Value
-        toggleNoAnimations(Value)
-    end
-}, "AnimToggle")
---Handler
-player.CharacterAdded:Connect(function(newChar)
-    character = newChar
-    root = character:WaitForChild("HumanoidRootPart")
-    humanoid = character:WaitForChild("Humanoid")
-    if boostJumpEnabled then toggleBoostJump(true) end
 end)
+
+-- // Plot Timers Toggle
+local plotTimersToggle = Instance.new("TextButton")
+plotTimersToggle.Size = UDim2.new(0, 160, 0, 40)
+plotTimersToggle.Position = UDim2.new(0.5, -80, 0, 195)
+plotTimersToggle.Text = "Plot Timers: OFF"
+plotTimersToggle.Font = Enum.Font.GothamBold
+plotTimersToggle.TextSize = 16
+plotTimersToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+plotTimersToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+plotTimersToggle.BorderSizePixel = 0
+plotTimersToggle.Parent = frame
+Instance.new("UICorner", plotTimersToggle).CornerRadius = UDim.new(0, 10)
+
+local isPlotTimersOn = false
+plotTimersToggle.MouseButton1Click:Connect(function()
+    isPlotTimersOn = not isPlotTimersOn
+    if isPlotTimersOn then
+        plotTimersToggle.Text = "Plot Timers: ON"
+        plotTimersToggle.BackgroundColor3 = Color3.fromRGB(0, 170, 100)
+        enablePlotTimers()
+    else
+        plotTimersToggle.Text = "Plot Timers: OFF"
+        plotTimersToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+        disablePlotTimers()
+    end
+end)
+
+-- Discord Label
+local discordLabel = Instance.new("TextLabel")
+discordLabel.Size = UDim2.new(1, -20, 0, 30)
+discordLabel.Position = UDim2.new(0, 10, 1, -40)
+discordLabel.BackgroundTransparency = 1
+discordLabel.Text = "discord.gg/JMRC5wXhV9"
+discordLabel.Font = Enum.Font.Gotham
+discordLabel.TextSize = 14
+discordLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
+discordLabel.Parent = frame
+
+-- // Desync Execution Function
+local function performDesync()
+    local flags = {
+        {"GameNetPVHeaderRotationalVelocityZeroCutoffExponent", "-5000"},
+        {"LargeReplicatorWrite5", "true"},
+        {"LargeReplicatorEnabled9", "true"},
+        {"AngularVelociryLimit", "360"},
+        {"TimestepArbiterVelocityCriteriaThresholdTwoDt", "2147483646"},
+        {"S2PhysicsSenderRate", "15000"},
+        {"DisableDPIScale", "true"},
+        {"MaxDataPacketPerSend", "2147483647"},
+        {"ServerMaxBandwith", "52"},
+        {"PhysicsSenderMaxBandwidthBps", "20000"},
+        {"MaxTimestepMultiplierBuoyancy", "2147483647"},
+        {"SimOwnedNOUCountThresholdMillionth", "2147483647"},
+        {"MaxMissedWorldStepsRemembered", "-2147483648"},
+        {"CheckPVDifferencesForInterpolationMinVelThresholdStudsPerSecHundredth", "1"},
+        {"StreamJobNOUVolumeLengthCap", "2147483647"},
+        {"DebugSendDistInSteps", "-2147483648"},
+        {"MaxTimestepMultiplierAcceleration", "2147483647"},
+        {"LargeReplicatorRead5", "true"},
+        {"SimExplicitlyCappedTimestepMultiplier", "2147483646"},
+        {"GameNetDontSendRedundantNumTimes", "1"},
+        {"CheckPVLinearVelocityIntegrateVsDeltaPositionThresholdPercent", "1"},
+        {"CheckPVCachedRotVelThresholdPercent", "10"},
+        {"LargeReplicatorSerializeRead3", "true"},
+        {"ReplicationFocusNouExtentsSizeCutoffForPauseStuds", "2147483647"},
+        {"NextGenReplicatorEnabledWrite4", "true"},
+        {"CheckPVDifferencesForInterpolationMinRotVelThresholdRadsPerSecHundredth", "1"},
+        {"GameNetDontSendRedundantDeltaPositionMillionth", "1"},
+        {"InterpolationFrameVelocityThresholdMillionth", "5"},
+        {"StreamJobNOUVolumeCap", "2147483647"},
+        {"InterpolationFrameRotVelocityThresholdMillionth", "5"},
+        {"WorldStepMax", "30"},
+        {"TimestepArbiterHumanoidLinearVelThreshold", "1"},
+        {"InterpolationFramePositionThresholdMillionth", "5"},
+        {"TimestepArbiterHumanoidTurningVelThreshold", "1"},
+        {"MaxTimestepMultiplierContstraint", "2147483647"},
+        {"GameNetPVHeaderLinearVelocityZeroCutoffExponent", "-5000"},
+        {"CheckPVCachedVelThresholdPercent", "10"},
+        {"TimestepArbiterOmegaThou", "1073741823"},
+        {"MaxAcceptableUpdateDelay", "1"},
+        {"LargeReplicatorSerializeWrite4", "true"},
+    }
+    for _, data in ipairs(flags) do
+        pcall(function()
+            if setfflag then
+                setfflag(data[1], data[2])
+            end
+        end)
+    end
+    local char = player.Character
+    if not char then return end
+    local humanoid = char:FindFirstChildWhichIsA("Humanoid")
+    if humanoid then
+        humanoid:ChangeState(Enum.HumanoidStateType.Dead)
+    end
+    char:ClearAllChildren()
+    local fakeModel = Instance.new("Model", workspace)
+    player.Character = fakeModel
+    task.wait()
+    player.Character = char
+    fakeModel:Destroy()
+end
+
+-- Connect desync ONLY to the button inside the popup
+executeDesyncBtn.MouseButton1Click:Connect(function()
+    performDesync()
+    desyncPopup.Visible = false -- Close popup after executing
+end)
+
+-- // Draggable GUI Logic
+local dragging = false
+local dragStart, startPos
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+    end
+end)
+frame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Final Character check (Warning: Original script destroys character instantly)
+local char = player.Character
+if char then
+    char:Destroy()
+end
