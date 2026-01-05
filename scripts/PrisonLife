@@ -1,10 +1,12 @@
 --[[
-    BloomWare v1.4.2
+    BloomWare v1.4.3
     Game: Prison Life
     Status: Stable / Detected
     
     Release Notes v1.4.2:
-    -FEATURES ADDED : Discord
+    -FEATURES ADDED : Fix Anti Taser
+    -Fix Aimbot Fov Circle
+    -Fix Aimbot Team Check
 ]]
 
 local executor_used = tostring(identifyexecutor())
@@ -704,12 +706,12 @@ PrisonAPI.Aimbot.Enabled = PrisonAPI.Aimbot.Enabled or false
 
 local AimbotConnections = {}
 
--- FOV Circle
+-- FOV Circle (fixed)
 local FOVCircle = Drawing.new("Circle")
-FOVCircle.Thickness = 0.5
-FOVCircle.NumSides = 10
+FOVCircle.Thickness = 1.5
+FOVCircle.NumSides = 64
 FOVCircle.Filled = false
-FOVCircle.Transparency = 0
+FOVCircle.Transparency = 1
 FOVCircle.Color = PrisonAPI.Aimbot.FOVColor or Color3.fromRGB(255, 0, 150)
 FOVCircle.Radius = PrisonAPI.Aimbot.FOV or 150
 FOVCircle.Visible = false
@@ -721,7 +723,7 @@ local function UpdateFOVCircle()
     FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 end
 
--- Getcamera position
+-- Get camera position
 local function GetCameraPosition()
     return Camera.CFrame.Position
 end
@@ -732,7 +734,7 @@ local function IsEnemy(plr)
     return plr.Team ~= LocalPlayer.Team and plr ~= LocalPlayer
 end
 
---visibility check from actual camera 
+-- Visibility check from actual camera
 local function IsVisible(targetPart)
     if not PrisonAPI.Aimbot.WallCheck then return true end
 
@@ -1519,57 +1521,80 @@ end
 Players.PlayerAdded:Connect(onCharacterAdded)
 --Chinese Hat
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
-local function applyChineseHat(player, character)
-    local config = PrisonAPI.ChineseHat
-    
-    if not config.Enabled then return end
-    if not config.ShowSelf and player == LocalPlayer then return end
-    if not character then return end
+local hats = {}  -- head → hat
 
-    local head = character:WaitForChild("Head", 10)
-    if not head then return end
-    
-    -- Remove old hat to prevent stacking on respawn
-    local existing = head:FindFirstChild("ChineseHatESP")
-    if existing then existing:Destroy() end
+local function destroyHat(head)
+    local hat = hats[head]
+    if hat then
+        hat:Destroy()
+        hats[head] = nil
+    end
+end
+
+local function createHat(head)
+    destroyHat(head)  -- Clean old
+
+    local config = PrisonAPI.ChineseHat
+    if not config.Enabled then return end
 
     local hat = Instance.new("ConeHandleAdornment")
     hat.Name = "ChineseHatESP"
     hat.Adornee = head
-    hat.Parent = head
-    
     hat.Height = config.Height
     hat.Radius = config.Width
     hat.Color3 = config.Color
     hat.Transparency = config.Transparency
-    
-    -- Position & Rotation (Pointed Up)
-    hat.CFrame = CFrame.new(0, 0.5, 0) * CFrame.Angles(math.rad(90), 0, 0)
 
-    -- ESP Properties
+    -- Perfect upward cone position (classic Chinese hat style)
+    hat.CFrame = CFrame.new(0, head.Size.Y / 2 + config.Height / 2 - 0.1, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+
     hat.AlwaysOnTop = true
-    hat.ZIndex = 5
+    hat.ZIndex = 10
+
+    hat.Parent = head
+    hats[head] = hat
 end
 
--- Monitor Players (Joins & Deaths)
-local function onPlayerAdded(player)
-    player.CharacterAdded:Connect(function(character)
-        task.wait(0.2) -- Brief delay to ensure character is fully ready
-        applyChineseHat(player, character)
-    end)
-    
-    if player.Character then
-        applyChineseHat(player, player.Character)
+local function updateAll()
+    for head, _ in pairs(hats) do
+        if head and head.Parent then
+            destroyHat(head)
+        end
+    end
+
+    if not PrisonAPI.ChineseHat.Enabled then return end
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player == LocalPlayer and not PrisonAPI.ChineseHat.ShowSelf then continue end
+        local char = player.Character
+        if char then
+            local head = char:FindFirstChild("Head")
+            if head then createHat(head) end
+        end
     end
 end
 
--- Initialize
-for _, p in ipairs(Players:GetPlayers()) do
-    onPlayerAdded(p)
+-- Live update on toggle or slider change
+RunService.Heartbeat:Connect(updateAll)
+
+-- Respawn / join handling
+local function onCharacter(player)
+    if player.Character then
+        local head = player.Character:WaitForChild("Head", 10)
+        if head then createHat(head) end
+    end
+    player.CharacterAdded:Connect(function(char)
+        task.wait(0.1)
+        local head = char:FindFirstChild("Head")
+        if head then createHat(head) end
+    end)
 end
-Players.PlayerAdded:Connect(onPlayerAdded)
+
+for _, p in ipairs(Players:GetPlayers()) do onCharacter(p) end
+Players.PlayerAdded:Connect(onCharacter)
 --hitbox wwwwwww
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -1684,8 +1709,10 @@ local infoBox = Tabs.Info:AddLeftGroupbox("Script Information", "info")
 
 infoBox:AddLabel("[<font color=\"rgb(73, 230, 133)\">Update Note</font>]")
 infoBox:AddDivider()
-infoBox:AddLabel("Update 1.4.2")
-infoBox:AddLabel("[+] Discord")
+infoBox:AddLabel("Update 1.4.3")
+infoBox:AddLabel("[+] Fix Anti Tase")
+infoBox:AddLabel("[+] Fix Team Check")
+infoBox:AddLabel("[+] Fix FOV")
 
 local discordBox = Tabs.Info:AddLeftGroupbox("Discord", "info")
 
@@ -1976,7 +2003,7 @@ local ColorGunToggle = colorgunBox:AddToggle("ColorGunToggle", {
             if tool then
                 for _, v in tool:GetDescendants() do
                     if v:IsA("BasePart") or v:IsA("MeshPart") then
-                        v.Material = Enum.Material.Neon
+                        v.Material = Enum.Material.ForceField
                         v.Color = PrisonAPI.Guns.SelectedColor or Color3.fromRGB(255, 0, 0)
                         v.Reflectance = 0
                         
@@ -2057,7 +2084,7 @@ aimbotBox:AddToggle("TeamCheckToggle", {
     Default = false,
     Tooltip = "Only Aim When The Target Is Not In Your Team"
 }):OnChanged(function(Value)
-   PrisonAPI.Aimbot.WallCheck = Value
+   PrisonAPI.Aimbot.TeamCheck = Value
 end)
 
 aimbotBox:AddSlider("FOVRadius", {
@@ -2220,125 +2247,149 @@ combatBox:AddToggle("AutoTazeToggle", {
 }):OnChanged(function(Value)
    PrisonAPI.AntiTaser = Value
     local Players = game:GetService("Players")
-    local RunService = game:GetService("RunService")
-    local UIS = game:GetService("UserInputService")
-    local player = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
 
-    local NORMAL_SPEED = 16
-    local SPRINT_SPEED = 26
-    local FORCED_JUMPPOWER = 50
+local player = Players.LocalPlayer
 
-    local BLOCKED_ANIMS = {
-        ["287112271"] = true,
-        ["279229192"] = true
-    }
+local NORMAL_SPEED = 16
+local SPRINT_SPEED = 26
+local FORCED_JUMPPOWER = 50
 
+local BLOCKED_ANIMS = {
+    ["287112271"] = true,  -- taser/ragdoll animations
+    ["279229192"] = true
+}
 
-    local shiftHeld = false
-    local lastPosition = nil
-    local connections = {}
+local shiftHeld = false
+local lastPosition = nil  -- only used for brief anti-ragdoll recovery, cleared on death
+local connections = {}
 
-    UIS.InputBegan:Connect(function(input, gp)
-        if gp or not PrisonAPI.AntiTaser then return end
-        if input.KeyCode == Enum.KeyCode.LeftShift then
-            shiftHeld = true
-        end
-    end)
-
-    UIS.InputEnded:Connect(function(input)
-        if not PrisonAPI.AntiTaser then return end
-        if input.KeyCode == Enum.KeyCode.LeftShift then
-            shiftHeld = false
-        end
-    end)
-
-    local function stopBadAnimation(track)
-        if not enabled or not track or not track.Animation then return end
-        local id = tostring(track.Animation.AnimationId:match("%d+"))
-        if BLOCKED_ANIMS[id] then
-            pcall(function() track:Stop() end)
-        end
+-- Sprint input handling
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed or not PrisonAPI.AntiTaser then return end
+    if input.KeyCode == Enum.KeyCode.LeftShift then
+        shiftHeld = true
     end
+end)
 
-    local function forceTeleport(root)
-        if not PrisonAPI.AntiTaser then return end
-        spawn(function()
-            for i = 1, 60 do
-                if root and root.Parent and lastPosition then
-                    local hum = root.Parent:FindFirstChildOfClass("Humanoid")
-                    if hum and hum.SeatPart then
-                        hum.Sit = false
-                    end
-                    pcall(function()
-                        root.CFrame = CFrame.new(lastPosition)
-                    end)
-                end
-                task.wait()
-            end
+UIS.InputEnded:Connect(function(input)
+    if not PrisonAPI.AntiTaser then return end
+    if input.KeyCode == Enum.KeyCode.LeftShift then
+        shiftHeld = false
+    end
+end)
+
+-- Block unwanted animations (taser/ragdoll)
+local function stopBadAnimation(track)
+    if not PrisonAPI.AntiTaser or not track or not track.Animation then return end
+    local id = tostring(track.Animation.AnimationId:match("%d+"))
+    if BLOCKED_ANIMS[id] then
+        pcall(function()
+            track:Stop()
         end)
     end
+end
 
-    local function setupCharacter(char)
-        if not char then return end
-        
-        local hum = char:WaitForChild("Humanoid")
-        local root = char:WaitForChild("HumanoidRootPart")
-        
-        -- Clean up old connections
-        for _, conn in pairs(connections) do
-            if conn.Connected then conn:Disconnect() end
-        end
-        table.clear(connections)
-        
-        if not PrisonAPI.AntiTaser then
-            -- When disabled, just reset to defaults and do nothing else
-            pcall(function()
-                hum.WalkSpeed = 16
-                hum.JumpPower = 50
-            end)
-            return
-        end
-        
-        -- Block unwanted animations
-        table.insert(connections, hum.AnimationPlayed:Connect(stopBadAnimation))
-        local animator = hum:FindFirstChildOfClass("Animator")
-        if animator then
-            for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-                stopBadAnimation(track)
+-- Brief teleport recovery when ragdolled/tased (only if we have a saved position)
+local function forceTeleport(root)
+    if not PrisonAPI.AntiTaser or not lastPosition then return end
+    
+    spawn(function()
+        for i = 1, 60 do  -- try for ~1-2 seconds
+            if root and root.Parent then
+                local hum = root.Parent:FindFirstChildOfClass("Humanoid")
+                if hum and hum.SeatPart then
+                    hum.Sit = false
+                end
+                pcall(function()
+                    root.CFrame = CFrame.new(lastPosition)
+                end)
             end
+            task.wait()
         end
-        
-        -- Speed, jump power, and sprint control
-        table.insert(connections, RunService.Heartbeat:Connect(function()
-            if not hum.Parent or not PrisonAPI.AntiTaser then return end
-            pcall(function()
-                hum.UseJumpPower = true
-                hum.JumpPower = FORCED_JUMPPOWER
-                hum.AutoJumpEnabled = true
-                hum.WalkSpeed = shiftHeld and SPRINT_SPEED or NORMAL_SPEED
-            end)
-        end))
-        
-        -- Save death position
-        table.insert(connections, hum.Died:Connect(function()
-            if root then
-                lastPosition = root.Position
-            end
-        end))
-        
-        -- Anti-forcefield
-        forceTeleport(root)
-        table.insert(connections, char.ChildAdded:Connect(function(child)
-            if child:IsA("ForceField") then
-                forceTeleport(root)
-            end
-        end))
-    end
+        -- Clear after attempt so it doesn't interfere with future respawns
+        lastPosition = nil
+    end)
+end
 
-    player.CharacterAdded:Connect(setupCharacter)
-    if player.Character then
-        setupCharacter(player.Character)
+-- Save position continuously while alive (for anti-ragdoll recovery)
+local function saveCurrentPosition(root)
+    if root and root.Parent then
+        lastPosition = root.Position
     end
+end
+
+local function setupCharacter(char)
+    if not char then return end
+    
+    local hum = char:WaitForChild("Humanoid")
+    local root = char:WaitForChild("HumanoidRootPart")
+    
+    -- Disconnect old connections
+    for _, conn in pairs(connections) do
+        if conn.Connected then
+            conn:Disconnect()
+        end
+    end
+    table.clear(connections)
+    
+    -- If anti-taser is disabled, just reset to defaults
+    if not PrisonAPI.AntiTaser then
+        pcall(function()
+            hum.WalkSpeed = 16
+            hum.JumpPower = 50
+        end)
+        return
+    end
+    
+    -- Block taser/ragdoll animations
+    table.insert(connections, hum.AnimationPlayed:Connect(stopBadAnimation))
+    local animator = hum:FindFirstChildOfClass("Animator")
+    if animator then
+        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+            stopBadAnimation(track)
+        end
+    end
+    
+    -- Force speed, jump power, and sprint
+    table.insert(connections, RunService.Heartbeat:Connect(function()
+        if not hum.Parent or not PrisonAPI.AntiTaser then return end
+        pcall(function()
+            hum.UseJumpPower = true
+            hum.JumpPower = FORCED_JUMPPOWER
+            hum.AutoJumpEnabled = true
+            hum.WalkSpeed = shiftHeld and SPRINT_SPEED or NORMAL_SPEED
+        end)
+    end))
+    
+    -- Continuously save position while alive (for anti-ragdoll recovery)
+    table.insert(connections, RunService.Heartbeat:Connect(function()
+        if hum.Health > 0 then
+            saveCurrentPosition(root)
+        end
+    end))
+    
+    table.insert(connections, hum.Died:Connect(function()
+        lastPosition = nil
+    end))
+    
+    -- Anti-forcefield / brief ragdoll recovery
+    forceTeleport(root)
+    table.insert(connections, char.ChildAdded:Connect(function(child)
+        if child:IsA("ForceField") then
+            forceTeleport(root)
+        end
+    end))
+end
+
+-- Connect to new characters
+player.CharacterAdded:Connect(setupCharacter)
+
+-- Setup current character if already loaded
+if player.Character then
+    setupCharacter(player.Character)
+end
 end)
 
 local Players = game:GetService("Players")
@@ -3755,3 +3806,5 @@ SaveManager:BuildConfigSection(Tabs["UI Settings"])
 ThemeManager:ApplyToTab(Tabs["UI Settings"])
 SaveManager:LoadAutoloadConfig()
 ThemeManager:ApplyTheme("Quartz")
+
+https://github.com/BloxCrypto/Modal/blob/main/Template.luau
