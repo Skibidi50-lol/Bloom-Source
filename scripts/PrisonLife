@@ -3807,4 +3807,4 @@ ThemeManager:ApplyToTab(Tabs["UI Settings"])
 SaveManager:LoadAutoloadConfig()
 ThemeManager:ApplyTheme("Quartz")
 
-https://github.com/BloxCrypto/Modal/blob/main/Template.luau
+--https://github.com/BloxCrypto/Modal/blob/main/Template.luau
