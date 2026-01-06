@@ -1,12 +1,10 @@
 --[[
-    BloomWare v1.4.3
+    BloomWare v1.4.4
     Game: Prison Life
     Status: Stable / Detected
     
-    Release Notes v1.4.2:
-    -FEATURES ADDED : Fix Anti Taser
-    -Fix Aimbot Fov Circle
-    -Fix Aimbot Team Check
+    Release Notes v1.4.4:
+    -FEATURES ADDED : TriggerBot (Auto Shoot)
 ]]
 
 local executor_used = tostring(identifyexecutor())
@@ -1709,10 +1707,8 @@ local infoBox = Tabs.Info:AddLeftGroupbox("Script Information", "info")
 
 infoBox:AddLabel("[<font color=\"rgb(73, 230, 133)\">Update Note</font>]")
 infoBox:AddDivider()
-infoBox:AddLabel("Update 1.4.3")
-infoBox:AddLabel("[+] Fix Anti Tase")
-infoBox:AddLabel("[+] Fix Team Check")
-infoBox:AddLabel("[+] Fix FOV")
+infoBox:AddLabel("Update 1.4.4")
+infoBox:AddLabel("[+] PC TriggerBot")
 
 local discordBox = Tabs.Info:AddLeftGroupbox("Discord", "info")
 
@@ -2981,7 +2977,138 @@ silentTBox:AddToggle("CrimsSAToggle", {
 }):OnChanged(function(Value)
     PrisonAPI.SilentAim.TargetCriminals = Value
 end)
+--triggerbot
+getgenv().triggerbot = {
+    Settings = {
+        isEnabled = false,
+        clickDelay = 0.01,
+        lastClickTime = 0,
+        targetInmates = true,
+        targetGuards = true,
+        targetCriminals = true,
+        targetNeutral = false  -- Usually off, as neutrals are rare
+    },
+    Connections = {},
+    load = function()
+        local Players = game:GetService("Players")
+        local StarterGui = game:GetService("StarterGui")
+        local LocalPlayer = Players.LocalPlayer
+        local mouse = LocalPlayer:GetMouse()
 
+        -- Clear old connections
+        for _, conn in pairs(getgenv().triggerbot.Connections) do
+            conn:Disconnect()
+        end
+        getgenv().triggerbot.Connections = {}
+
+        -- Simulate click
+        local function simulateClick()
+            mouse1click()
+        end
+
+        -- Check if player should be targeted based on toggles
+        local function shouldTarget(player)
+            if player == LocalPlayer then return false end
+            if not player.Team then return false end
+
+            local teamName = player.Team.Name
+
+            if teamName == "Inmates" and getgenv().triggerbot.Settings.targetInmates then
+                return true
+            elseif teamName == "Guards" and getgenv().triggerbot.Settings.targetGuards then
+                return true
+            elseif teamName == "Criminals" and getgenv().triggerbot.Settings.targetCriminals then
+                return true
+            elseif teamName == "Neutral" and getgenv().triggerbot.Settings.targetNeutral then
+                return true
+            end
+
+            return false
+        end
+
+        -- Check if mouse is hovering over a valid target
+        local function isHoveringValidTarget()
+            local target = mouse.Target
+            if not target then return false end
+
+            local character = target:FindFirstAncestorWhichIsA("Model")
+            if not character then return false end
+
+            local player = Players:GetPlayerFromCharacter(character)
+            if not player then return false end
+
+            return shouldTarget(player)
+        end
+
+        -- Notification
+        local function notify(message)
+            StarterGui:SetCore("SendNotification", {
+                Title = "TriggerBot",
+                Text = message,
+                Duration = 2,
+            })
+        end
+
+        -- Main trigger logic
+        table.insert(getgenv().triggerbot.Connections, mouse.Move:Connect(function()
+            if getgenv().triggerbot.Settings.isEnabled and isHoveringValidTarget() then
+                local currentTime = tick()
+                if currentTime - getgenv().triggerbot.Settings.lastClickTime >= getgenv().triggerbot.Settings.clickDelay then
+                    simulateClick()
+                    getgenv().triggerbot.Settings.lastClickTime = currentTime
+                end
+            end
+        end))
+
+        notify("TriggerBot Loaded! Use toggles to choose targets.")
+    end
+}
+
+
+local triggerBox = Tabs.Rage:AddRightGroupbox("TriggerBot")
+
+triggerBox:AddButton({
+    Text = "Load Trigger Bot",
+    Func = function()
+        getgenv().triggerbot.load()
+    end
+})
+
+-- Master Toggle
+triggerBox:AddToggle("TriggerBotEnabled", {
+    Text = "TriggerBot Enabled",
+    Default = false
+}):OnChanged(function(value)
+    getgenv().triggerbot.Settings.isEnabled = value
+    local status = value and "Enabled" or "Disabled"
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "TriggerBot",
+        Text = "TriggerBot " .. status,
+        Duration = 2
+    })
+end)
+
+-- Team Target Toggles
+triggerBox:AddToggle("TargetInmates", {
+    Text = "Target Inmates",
+    Default = true
+}):OnChanged(function(value)
+    getgenv().triggerbot.Settings.targetInmates = value
+end)
+
+triggerBox:AddToggle("TargetGuards", {
+    Text = "Target Guards",
+    Default = true
+}):OnChanged(function(value)
+    getgenv().triggerbot.Settings.targetGuards = value
+end)
+
+triggerBox:AddToggle("TargetCriminals", {
+    Text = "Target Criminals",
+    Default = true
+}):OnChanged(function(value)
+    getgenv().triggerbot.Settings.targetCriminals = value
+end)
 --Chams shit
 local chamsBox = Tabs.Visual:AddLeftGroupbox("Chams", "user")
 
