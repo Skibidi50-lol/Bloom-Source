@@ -1,10 +1,10 @@
 --[[
-    BloomWare v1.4.4
+    BloomWare v1.4.5
     Game: Prison Life
     Status: Stable / Detected
     
-    Release Notes v1.4.4:
-    -FEATURES ADDED : TriggerBot (Auto Shoot)
+    Release Notes v1.4.5:
+    -FEATURES ADDED : Fix Some Stuff
 ]]
 
 local executor_used = tostring(identifyexecutor())
@@ -1416,35 +1416,40 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 --chams shit
-local Chams = { 
+local Chams = {
     Enabled = false,
     FillTrans = 0.5,
     OutlineTrans = 0,
 }
 
+--Services
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
-local TEAM_COLORS = {
-    ["Inmates"] = Color3.fromRGB(255, 165, 0),
-    ["Guards"] = Color3.fromRGB(70, 70, 255),
-    ["Criminals"] = Color3.fromRGB(255, 70, 70),
-}
+local LocalPlayer = Players.LocalPlayer
 
+--Remove existing highlight
 local function removeHighlight(char)
     local h = char:FindFirstChild("TeamESP")
-    if h then h:Destroy() end
+    if h then
+        h:Destroy()
+    end
 end
 
-local function createHighlight(char, color)
-    removeHighlight(char)  -- Clean any old one
+--Create highlight
+local function createHighlight(char, outlineColor)
+    removeHighlight(char)
 
     local h = Instance.new("Highlight")
     h.Name = "TeamESP"
     h.Adornee = char
+
+    -- Fill stays neutral
     h.FillColor = Color3.fromRGB(0, 0, 0)
-    h.OutlineColor = color
+
+    -- Outline uses team color
+    h.OutlineColor = outlineColor
+
     h.FillTransparency = Chams.FillTrans
     h.OutlineTransparency = Chams.OutlineTrans
     h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
@@ -1452,71 +1457,72 @@ local function createHighlight(char, color)
     h.Parent = char
 end
 
--- Main update loop
+--// Update loop
 RunService.RenderStepped:Connect(function()
     for _, player in ipairs(Players:GetPlayers()) do
         local char = player.Character
         if not char then continue end
 
+        -- No chams on local player
         if player == LocalPlayer then
             removeHighlight(char)
-            continue  -- Skip everything else for local player
+            continue
         end
 
         local highlight = char:FindFirstChild("TeamESP")
 
-        if Chams.Enabled then
-            if not player.Team or not player.Team.Name then
-                if highlight then highlight.Enabled = false end
-                continue
-            end
-
-            local currentColor = TEAM_COLORS[player.Team.Name]
-            if not currentColor then
-                if highlight then highlight.Enabled = false end
-                continue
-            end
-
-            if not highlight then
-                createHighlight(char, currentColor)
-            else
-                -- Update color (for team changes) and transparency
-                highlight.FillColor = currentColor
-                highlight.OutlineColor = currentColor
-                highlight.FillTransparency = Chams.FillTrans
-                highlight.OutlineTransparency = Chams.OutlineTrans
-                highlight.Enabled = true
-            end
-        else
-            -- Chams disabled
+        if not Chams.Enabled then
             if highlight then
                 highlight.Enabled = false
             end
+            continue
+        end
+
+        -- Get team color dynamically
+        if not player.Team or not player.Team.TeamColor then
+            if highlight then
+                highlight.Enabled = false
+            end
+            continue
+        end
+
+        local teamColor = player.Team.TeamColor.Color
+
+        if not highlight then
+            createHighlight(char, teamColor)
+        else
+            -- Update outline color & transparency
+            highlight.OutlineColor = teamColor
+            highlight.FillColor = Color3.fromRGB(0, 0, 0)
+            highlight.FillTransparency = Chams.FillTrans
+            highlight.OutlineTransparency = Chams.OutlineTrans
+            highlight.Enabled = true
         end
     end
 end)
 
--- Handle respawn / player joining
-local function onCharacterAdded(player)
+--// Handle respawns
+local function setupPlayer(player)
     player.CharacterAdded:Connect(function(char)
         task.wait(0.5)
-        
+
         if player == LocalPlayer then
             removeHighlight(char)
             return
         end
 
-        if Chams.Enabled and player.Team and TEAM_COLORS[player.Team.Name] then
-            createHighlight(char, TEAM_COLORS[player.Team.Name])
+        if Chams.Enabled and player.Team and player.Team.TeamColor then
+            createHighlight(char, player.Team.TeamColor.Color)
         end
     end)
 end
 
--- Connect for existing and new players
+--// Init
 for _, p in ipairs(Players:GetPlayers()) do
-    onCharacterAdded(p)
+    setupPlayer(p)
 end
-Players.PlayerAdded:Connect(onCharacterAdded)
+
+Players.PlayerAdded:Connect(setupPlayer)
 --Chinese Hat
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -1707,8 +1713,8 @@ local infoBox = Tabs.Info:AddLeftGroupbox("Script Information", "info")
 
 infoBox:AddLabel("[<font color=\"rgb(73, 230, 133)\">Update Note</font>]")
 infoBox:AddDivider()
-infoBox:AddLabel("Update 1.4.4")
-infoBox:AddLabel("[+] PC TriggerBot")
+infoBox:AddLabel("Update 1.4.5")
+infoBox:AddLabel("[+] Fix Some Stuff")
 
 local discordBox = Tabs.Info:AddLeftGroupbox("Discord", "info")
 
@@ -3121,7 +3127,7 @@ end)
  
 chamsBox:AddSlider("FillTrans", {
     Text = "Fill Transparency",
-    Default = 0.6,
+    Default = 0.5,
     Min = 0,
     Max = 1,
     Rounding = 1,
@@ -3358,10 +3364,10 @@ plrBox:AddSlider("CFrameSpeedValue", {
 end)
 
 getgenv().spinbot = {
-    enabled = false,      -- Set to false to disable entirely
-    spinspeed = 100,     -- Higher = faster (500 is already very fast, 1000+ = extreme)
-    offset = false,      -- Set to true if you want a slight upward offset (can help in some games)
-    persist = false       -- Reapply after death/respawn
+    enabled = false,
+    spinspeed = 100,
+    offset = false,
+    persist = false
 }
 
 local player = game.Players.LocalPlayer
