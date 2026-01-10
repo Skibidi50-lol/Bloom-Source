@@ -1,5 +1,4 @@
 getgenv().TrophyFarm = false
-spawn(function()
     while getgenv().TrophyFarm do
         local char = player.Character
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -12,4 +11,3 @@ spawn(function()
         end
         task.wait(0.3)
     end
-end)
