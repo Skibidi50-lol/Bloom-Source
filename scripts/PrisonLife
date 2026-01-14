@@ -1,10 +1,10 @@
 --[[
-    BloomWare v1.4.5
+    BloomWare v1.4.6
     Game: Prison Life
     Status: Stable / Detected
     
-    Release Notes v1.4.5:
-    -FEATURES ADDED : Fix Some Stuff
+    Release Notes v1.4.6:
+    -FEATURES ADDED : Aimbot Target
 ]]
 
 local executor_used = tostring(identifyexecutor())
@@ -130,9 +130,9 @@ local PrisonAPI = {
         ShowFOV = false,
         FOVColor = Color3.fromRGB(255, 0, 150),
         ThirdPerson = false,
-        TargetInmates = true,
-        TargetGuards = true,
-        TargetCriminals = true,
+        TargetInmates = false,
+        TargetGuards = false,
+        TargetCriminals = false,
     },
     SilentAim = {
         Enabled = false,
@@ -695,23 +695,23 @@ function PrisonAPI.BecomeCriminal()
     savedPosition = nil
 end
 --aimbot
-local Camera = workspace.CurrentCamera
-local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
-PrisonAPI.Aimbot.Enabled = PrisonAPI.Aimbot.Enabled or false
 
-local AimbotConnections = {}
+local AimbotConnections = {
+    Main = nil,
+    FOV = nil
+}
 
--- FOV Circle (fixed)
+-- FOV Circle setup
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1.5
 FOVCircle.NumSides = 64
 FOVCircle.Filled = false
 FOVCircle.Transparency = 1
-FOVCircle.Color = PrisonAPI.Aimbot.FOVColor or Color3.fromRGB(255, 0, 150)
-FOVCircle.Radius = PrisonAPI.Aimbot.FOV or 150
 FOVCircle.Visible = false
 
 local function UpdateFOVCircle()
@@ -721,25 +721,44 @@ local function UpdateFOVCircle()
     FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 end
 
--- Get camera position
-local function GetCameraPosition()
-    return Camera.CFrame.Position
+-- Team Validation Logic
+local function IsTargetTeamValid(plr)
+    if not plr.Team then return false end
+    local teamName = plr.Team.Name
+
+    if teamName == "Inmates" and PrisonAPI.Aimbot.TargetInmates then return true end
+    if teamName == "Guards" and PrisonAPI.Aimbot.TargetGuards then return true end
+    if teamName == "Criminals" and PrisonAPI.Aimbot.TargetCriminals then return true end
+    
+    return false
 end
 
--- Team check
-local function IsEnemy(plr)
-    if not PrisonAPI.Aimbot.TeamCheck then return true end
-    return plr.Team ~= LocalPlayer.Team and plr ~= LocalPlayer
+-- Comprehensive Check for Aimbot
+local function IsValidTarget(plr)
+    if plr == LocalPlayer then return false end
+    
+    -- Check specific team toggles
+    if not IsTargetTeamValid(plr) then return false end
+
+    -- Standard Team Check
+    if PrisonAPI.Aimbot.TeamCheck and plr.Team == LocalPlayer.Team then return false end
+
+    local char = plr.Character
+    if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then
+        return false
+    end
+
+    return true
 end
 
--- Visibility check from actual camera
+-- Wall Check
 local function IsVisible(targetPart)
     if not PrisonAPI.Aimbot.WallCheck then return true end
 
-    local origin = GetCameraPosition()
+    local origin = Camera.CFrame.Position
     local direction = (targetPart.Position - origin)
     local rayParams = RaycastParams.new()
-    rayParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    rayParams.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
     rayParams.FilterType = Enum.RaycastFilterType.Blacklist
 
     local result = workspace:Raycast(origin, direction, rayParams)
@@ -748,58 +767,52 @@ local function IsVisible(targetPart)
     return result.Instance:IsDescendantOf(targetPart.Parent)
 end
 
--- Get closest valid target inside FOV
+-- Find Target
 local function GetBestTarget()
     local closest = nil
     local shortestDist = PrisonAPI.Aimbot.FOV
     local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 
     for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and IsEnemy(plr) then
+        if IsValidTarget(plr) then
             local char = plr.Character
-            if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
-                local part = char:FindFirstChild(PrisonAPI.Aimbot.TargetPart) or char:FindFirstChild("Head")
-                if part then
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
-                    if onScreen then
-                        local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-                        if screenDist < shortestDist and IsVisible(part) then
-                            shortestDist = screenDist
-                            closest = part
-                        end
+            local part = char:FindFirstChild(PrisonAPI.Aimbot.TargetPart) or char:FindFirstChild("Head")
+            if part then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                if onScreen then
+                    local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                    if screenDist < shortestDist and IsVisible(part) then
+                        shortestDist = screenDist
+                        closest = part
                     end
                 end
             end
         end
     end
-
     return closest
 end
 
--- Smooth camera lerp aim
+-- Aim Execution
 local function AimAt(targetPart)
     if not targetPart then return end
-
-    local targetPos = targetPart.Position
+    
     local currentCFrame = Camera.CFrame
-    local targetCFrame = CFrame.new(currentCFrame.Position, targetPos)
+    local targetCFrame = CFrame.new(currentCFrame.Position, targetPart.Position)
+    local smoothness = math.clamp(1 - PrisonAPI.Aimbot.Smoothness, 0.01, 1)
 
-    Camera.CFrame = currentCFrame:Lerp(targetCFrame, 1 - PrisonAPI.Aimbot.Smoothness)
+    Camera.CFrame = currentCFrame:Lerp(targetCFrame, smoothness)
 end
 
--- Start/Stop Aimbot
+-- CORE FUNCTIONS (FIXED NULL CHECKS)
 local function StartAimbot()
+    -- Ensure the table exists to prevent the "Index nil with Main" error
+    if not AimbotConnections then AimbotConnections = {} end
     if AimbotConnections.Main then return end
 
     AimbotConnections.Main = RunService.RenderStepped:Connect(function()
-        if not PrisonAPI.Aimbot.Enabled then return end
-
-        local char = LocalPlayer.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-
-        local target = GetBestTarget()
-        if target then
-            AimAt(target)
+        if PrisonAPI.Aimbot.Enabled then
+            local target = GetBestTarget()
+            if target then AimAt(target) end
         end
     end)
 
@@ -807,32 +820,28 @@ local function StartAimbot()
 end
 
 local function StopAimbot()
-    for _, conn in pairs(AimbotConnections) do
-        if conn and conn.Connected then
-            conn:Disconnect()
-        end
+    if not AimbotConnections then return end
+    
+    if AimbotConnections.Main then 
+        AimbotConnections.Main:Disconnect() 
+        AimbotConnections.Main = nil
     end
-    AimbotConnections = {}
+    if AimbotConnections.FOV then 
+        AimbotConnections.FOV:Disconnect() 
+        AimbotConnections.FOV = nil
+    end
+    
     FOVCircle.Visible = false
 end
 
--- Toggle handler
-local function SetAimbotState(enabled)
-    PrisonAPI.Aimbot.Enabled = enabled
-    if enabled then
-        StartAimbot()
-    else
-        StopAimbot()
+-- UI Toggle Handler
+local function SetAimbotState(state)
+    PrisonAPI.Aimbot.Enabled = state
+    if state then 
+        StartAimbot() 
+    else 
+        StopAimbot() 
     end
-    UpdateFOVCircle()
-end
-
-local function UpdateAimbotSettings()
-    if PrisonAPI.Aimbot.Enabled then
-        StopAimbot()
-        StartAimbot()
-    end
-    UpdateFOVCircle()
 end
 --silent aim
 local Players = game:GetService("Players")
@@ -1713,8 +1722,8 @@ local infoBox = Tabs.Info:AddLeftGroupbox("Script Information", "info")
 
 infoBox:AddLabel("[<font color=\"rgb(73, 230, 133)\">Update Note</font>]")
 infoBox:AddDivider()
-infoBox:AddLabel("Update 1.4.5")
-infoBox:AddLabel("[+] Fix Some Stuff")
+infoBox:AddLabel("Update 1.4.6")
+infoBox:AddLabel("[+] Aimbot Target")
 
 local discordBox = Tabs.Info:AddLeftGroupbox("Discord", "info")
 
@@ -2081,14 +2090,6 @@ aimbotBox:AddToggle("WallCheckToggle", {
    PrisonAPI.Aimbot.WallCheck = Value
 end)
 
-aimbotBox:AddToggle("TeamCheckToggle", {
-    Text = "Team Check",
-    Default = false,
-    Tooltip = "Only Aim When The Target Is Not In Your Team"
-}):OnChanged(function(Value)
-   PrisonAPI.Aimbot.TeamCheck = Value
-end)
-
 aimbotBox:AddSlider("FOVRadius", {
     Text = "Smoothness",
     Default = 0.22,
@@ -2126,6 +2127,30 @@ aimbotBox:AddSlider("FOVRadius", {
     Suffix = "px"
 }):OnChanged(function(Value)
     PrisonAPI.Aimbot.FOV = Value
+end)
+
+aimbotBox:AddToggle("InmatesToggle", {
+    Text = "Target Inmates",
+    Default = false,
+    Tooltip = "idfk"
+}):OnChanged(function(Value)
+   PrisonAPI.Aimbot.TargetInmates = Value
+end)
+
+aimbotBox:AddToggle("GuardsToggle", {
+    Text = "Target Guards",
+    Default = false,
+    Tooltip = "idfk"
+}):OnChanged(function(Value)
+   PrisonAPI.Aimbot.TargetGuards = Value
+end)
+
+aimbotBox:AddToggle("CriminalToggle", {
+    Text = "Target Criminals",
+    Default = false,
+    Tooltip = "idfk"
+}):OnChanged(function(Value)
+   PrisonAPI.Aimbot.TargetCriminals = Value
 end)
 
 local hitboxBox = Tabs.Main:AddLeftGroupbox("Hitbox Expander", "box")
