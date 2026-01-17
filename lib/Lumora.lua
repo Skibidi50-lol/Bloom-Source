@@ -24,7 +24,7 @@ local function create(class, props)
 end
 
 local function tween(obj, info, props)
-    local t = TweenService:Create(obj, info or TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), props)
+    local t = TweenService:Create(obj, info or TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), props)
     t:Play()
     return t
 end
@@ -66,28 +66,55 @@ function Library:Create(name)
 
     local content = create("Frame", {Size = UDim2.new(1,0,1,-36), Position = UDim2.new(0,0,0,36), BackgroundTransparency = 1, Parent = main})
     local sidebar = create("Frame", {Size = UDim2.new(0,120,1,0), BackgroundColor3 = COLORS.Darker, Parent = content})
-    local tabContainer = create("Frame", {Size = UDim2.new(1,-120,1,0), Position = UDim2.new(0,120,0,0), BackgroundTransparency = 1, Parent = content})
+    
+    -- Tab Container clips the sliding canvas
+    local tabContainer = create("Frame", {Size = UDim2.new(1,-120,1,0), Position = UDim2.new(0,120,0,0), BackgroundTransparency = 1, ClipsDescendants = true, Parent = content})
+    -- Tab Canvas holds all the actual tab frames
+    local tabCanvas = create("Frame", {Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Parent = tabContainer})
+
     create("UIListLayout", {Padding = UDim.new(0,4), HorizontalAlignment = "Center", Parent = sidebar})
     create("UIPadding", {PaddingTop = UDim.new(0,10), Parent = sidebar})
 
     local window = {Tabs = {}}
-    local currentTab, currentBtn = nil, nil
+    local currentBtn = nil
 
     function window:Tab(name)
+        local tabIndex = #window.Tabs
         local tab = {}
+        
         local btn = create("TextButton", {Size = UDim2.new(0.9,0,0,30), BackgroundTransparency = 1, Text = name, Font = Enum.Font.GothamSemibold, TextColor3 = COLORS.TextDim, TextSize = 13, Parent = sidebar})
-        local frame = create("ScrollingFrame", {Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Visible = false, ScrollBarThickness = 2, CanvasSize = UDim2.new(0,0,0,0), Parent = tabContainer})
+        
+        -- Position tabs side-by-side using the index (0, 100%, 200%...)
+        local frame = create("ScrollingFrame", {
+            Size = UDim2.new(1,0,1,0), 
+            Position = UDim2.new(tabIndex, 0, 0, 0),
+            BackgroundTransparency = 1, 
+            Visible = true, 
+            ScrollBarThickness = 2, 
+            CanvasSize = UDim2.new(0,0,0,0), 
+            Parent = tabCanvas
+        })
+        
         create("UIListLayout", {Padding = UDim.new(0,8), HorizontalAlignment = "Center", Parent = frame})
         create("UIPadding", {PaddingTop = UDim.new(0,10), PaddingBottom = UDim.new(0,10), Parent = frame})
 
         btn.MouseButton1Click:Connect(function()
-            if currentTab then currentTab.Visible = false; tween(currentBtn, nil, {TextColor3 = COLORS.TextDim}) end
-            frame.Visible = true; tween(btn, nil, {TextColor3 = COLORS.Accent}); currentTab = frame; currentBtn = btn
+            if currentBtn then tween(currentBtn, nil, {TextColor3 = COLORS.TextDim}) end
+            currentBtn = btn
+            tween(btn, nil, {TextColor3 = COLORS.Accent})
+            
+            -- Slide the canvas to show the correct tab
+            tween(tabCanvas, nil, {Position = UDim2.new(-tabIndex, 0, 0, 0)})
         end)
 
-        if #window.Tabs == 0 then frame.Visible = true; btn.TextColor3 = COLORS.Accent; currentTab = frame; currentBtn = btn end
+        if #window.Tabs == 0 then 
+            btn.TextColor3 = COLORS.Accent
+            currentBtn = btn 
+        end
+        
         table.insert(window.Tabs, tab)
 
+        -- Elements (Section, Slider, etc)
         function tab:Section(text)
             local sFrame = create("Frame", {Size = UDim2.new(0.92,0,0,25), BackgroundTransparency = 1, Parent = frame})
             create("TextLabel", {Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Text = text:upper(), TextColor3 = COLORS.Accent, Font = "GothamBold", TextSize = 11, TextXAlignment = "Left", Parent = sFrame})
@@ -100,7 +127,6 @@ function Library:Create(name)
             create("UIStroke", {Color = COLORS.Outline, Thickness = 1, Transparency = 0.7, Parent = f})
             
             local label = create("TextLabel", {Size = UDim2.new(1,-20,0,20), Position = UDim2.new(0,10,0,5), BackgroundTransparency = 1, Text = text, TextColor3 = COLORS.Text, Font = "Gotham", TextSize = 12, TextXAlignment = "Left", Parent = f})
-            -- THE AMOUNT LABEL
             local valLabel = create("TextLabel", {Size = UDim2.new(0,40,0,20), Position = UDim2.new(1,-50,0,5), BackgroundTransparency = 1, Text = tostring(default), TextColor3 = COLORS.Accent, Font = "GothamBold", TextSize = 12, TextXAlignment = "Right", Parent = f})
             
             local bar = create("Frame", {Size = UDim2.new(1,-20,0,5), Position = UDim2.new(0,10,0,32), BackgroundColor3 = COLORS.Bg, Parent = f})
@@ -113,7 +139,7 @@ function Library:Create(name)
                 local percent = math.clamp((UserInputService:GetMouseLocation().X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
                 local val = math.round(min + (max - min) * percent)
                 fill.Size = UDim2.new(percent, 0, 1, 0)
-                valLabel.Text = tostring(val) -- Update the amount
+                valLabel.Text = tostring(val)
                 callback(val)
             end
             bar.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true update() end end)
@@ -150,7 +176,15 @@ function Library:Create(name)
 
     local uiOpen = false
     toggleBtn.MouseButton1Click:Connect(function()
-        uiOpen = not uiOpen; if uiOpen then main.Visible = true; main.Size = UDim2.new(0,0,0,0); tween(main, TweenInfo.new(0.4, Enum.EasingStyle.Back), {Size = UDim2.new(0,480,0,340)}) else tween(main, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.new(0,0,0,0)}); task.delay(0.3, function() if not uiOpen then main.Visible = false end end) end
+        uiOpen = not uiOpen; 
+        if uiOpen then 
+            main.Visible = true; 
+            main.Size = UDim2.new(0,0,0,0); 
+            tween(main, TweenInfo.new(0.4, Enum.EasingStyle.Back), {Size = UDim2.new(0,480,0,340)}) 
+        else 
+            tween(main, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.new(0,0,0,0)}); 
+            task.delay(0.3, function() if not uiOpen then main.Visible = false end end) 
+        end
     end)
 
     return window
