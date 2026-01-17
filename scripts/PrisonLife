@@ -1815,6 +1815,7 @@ infoBox:AddLabel("[+] Anti Kick")
 infoBox:AddLabel("[+] Rewrite Chams")
 infoBox:AddLabel("[+] Silent Aim FOV Fixed")
 infoBox:AddLabel("[+] Make Tp Using Velocity")
+infoBox:AddLabel("[+] Tp Cooldown")
 
 local discordBox = Tabs.Info:AddLeftGroupbox("Discord", "info")
 
