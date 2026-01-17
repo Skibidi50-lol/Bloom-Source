@@ -29,7 +29,7 @@ local function tween(obj, info, props)
     return t
 end
 
--- Fancy Smooth Dragging
+-- Fancy Smooth Dragging Logic
 local function makeDraggable(frame, handle)
     local dragging, dragInput, dragStart, startPos
     handle.InputBegan:Connect(function(input)
@@ -49,7 +49,7 @@ local function makeDraggable(frame, handle)
         if dragging and dragInput then
             local delta = dragInput.Position - dragStart
             local targetPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-            frame.Position = frame.Position:Lerp(targetPos, 0.2) -- Smoothness factor
+            frame.Position = frame.Position:Lerp(targetPos, 0.2)
         end
     end)
 end
@@ -57,16 +57,17 @@ end
 function Library:Create(name)
     local sg = create("ScreenGui", {Name = "LumoraUI", ResetOnSpawn = false, Parent = game.CoreGui})
 
-    -- Toggle Button (Draggable)
+    -- Fancy Toggle Button
     local toggleBtn = create("TextButton", {
         Size = UDim2.new(0,50,0,50), Position = UDim2.new(0,20,0.5,-25),
         BackgroundColor3 = COLORS.Accent, Text = "L", Font = Enum.Font.GothamBold,
         TextColor3 = Color3.new(1,1,1), TextSize = 22, Parent = sg
     })
     create("UICorner", {CornerRadius = UDim.new(1,0), Parent = toggleBtn})
+    create("UIStroke", {Color = COLORS.Outline, Thickness = 2, Parent = toggleBtn})
     makeDraggable(toggleBtn, toggleBtn)
 
-    -- Main Window
+    -- Main Frame
     local main = create("Frame", {
         Size = UDim2.new(0,480,0,340), Position = UDim2.new(0.5,-240,0.5,-170),
         BackgroundColor3 = COLORS.Bg, Visible = false, ClipsDescendants = true, Parent = sg
@@ -74,7 +75,6 @@ function Library:Create(name)
     create("UICorner", {CornerRadius = UDim.new(0,10), Parent = main})
     create("UIStroke", {Color = COLORS.Outline, Thickness = 2, Transparency = 0.5, Parent = main})
 
-    -- Title Bar (Handle)
     local title = create("Frame", {Size = UDim2.new(1,0,0,36), BackgroundColor3 = COLORS.Darker, Parent = main})
     create("UICorner", {CornerRadius = UDim.new(0,10), Parent = title})
     makeDraggable(main, title)
@@ -82,14 +82,14 @@ function Library:Create(name)
     create("TextLabel", {
         Size = UDim2.new(1,-40,1,0), Position = UDim2.new(0,14,0,0),
         BackgroundTransparency = 1, Text = name or "Lumora", Font = Enum.Font.GothamBold,
-        TextColor3 = COLORS.Text, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, Parent = title
+        TextColor3 = COLORS.Text, TextSize = 14, TextXAlignment = "Left", Parent = title
     })
 
     local content = create("Frame", {Size = UDim2.new(1,0,1,-36), Position = UDim2.new(0,0,0,36), BackgroundTransparency = 1, Parent = main})
     local sidebar = create("Frame", {Size = UDim2.new(0,120,1,0), BackgroundColor3 = COLORS.Darker, Parent = content})
     local tabContainer = create("Frame", {Size = UDim2.new(1,-120,1,0), Position = UDim2.new(0,120,0,0), BackgroundTransparency = 1, Parent = content})
     
-    local sideLayout = create("UIListLayout", {Padding = UDim.new(0,4), HorizontalAlignment = "Center", Parent = sidebar})
+    create("UIListLayout", {Padding = UDim.new(0,4), HorizontalAlignment = "Center", Parent = sidebar})
     create("UIPadding", {PaddingTop = UDim.new(0,10), Parent = sidebar})
 
     local window = {Tabs = {}}
@@ -97,7 +97,7 @@ function Library:Create(name)
     local currentBtn = nil
 
     function window:Tab(name)
-        local tab = {Elements = {}}
+        local tab = {}
         local btn = create("TextButton", {
             Size = UDim2.new(0.9,0,0,30), BackgroundTransparency = 1,
             Text = name, Font = Enum.Font.GothamSemibold, TextColor3 = COLORS.TextDim,
@@ -108,8 +108,8 @@ function Library:Create(name)
             Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Visible = false,
             ScrollBarThickness = 2, CanvasSize = UDim2.new(0,0,0,0), Parent = tabContainer
         })
-        create("UIListLayout", {Padding = UDim.new(0,8), HorizontalAlignment = "Center", Parent = frame})
-        create("UIPadding", {PaddingTop = UDim.new(0,10), Parent = frame})
+        create("UIListLayout", {Padding = UDim.new(0,6), HorizontalAlignment = "Center", Parent = frame})
+        create("UIPadding", {PaddingTop = UDim.new(0,10), PaddingBottom = UDim.new(0,10), Parent = frame})
 
         btn.MouseButton1Click:Connect(function()
             if currentTab then 
@@ -130,77 +130,81 @@ function Library:Create(name)
         end
         table.insert(window.Tabs, tab)
 
-        -- Elements: Toggle
+        -- Section Element
+        function tab:Section(text)
+            local sFrame = create("Frame", {Size = UDim2.new(0.92,0,0,25), BackgroundTransparency = 1, Parent = frame})
+            local label = create("TextLabel", {
+                Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Text = text:upper(),
+                TextColor3 = COLORS.Accent, Font = "GothamBold", TextSize = 11, TextXAlignment = "Left", Parent = sFrame
+            })
+            local line = create("Frame", {
+                Size = UDim2.new(1, -label.TextBounds.X - 10, 0, 1), Position = UDim2.new(0, label.TextBounds.X + 10, 0.5, 0),
+                BackgroundColor3 = COLORS.Outline, Transparency = 0.6, Parent = sFrame
+            })
+        end
+
+        -- Toggle with Outline
         function tab:Toggle(text, default, callback)
             local enabled = default or false
             local f = create("Frame", {Size = UDim2.new(0.9,0,0,36), BackgroundColor3 = COLORS.Darker, Parent = frame})
             create("UICorner", {CornerRadius = UDim.new(0,6), Parent = f})
+            create("UIStroke", {Color = COLORS.Outline, Thickness = 1, Transparency = 0.7, Parent = f})
             
             local label = create("TextLabel", {Size = UDim2.new(1,-50,1,0), Position = UDim2.new(0,10,0,0), BackgroundTransparency = 1, Text = text, TextColor3 = COLORS.Text, Font = "Gotham", TextSize = 13, TextXAlignment = "Left", Parent = f})
+            
             local tog = create("Frame", {Size = UDim2.new(0,34,0,18), Position = UDim2.new(1,-44,0.5,-9), BackgroundColor3 = enabled and COLORS.ToggleOn or COLORS.ToggleOff, Parent = f})
             create("UICorner", {CornerRadius = UDim.new(1,0), Parent = tog})
-            local dot = create("Frame", {Size = UDim2.new(0,14,0,14), Position = enabled and UDim2.new(1,-17,0.5,-7) or UDim2.new(0,3,0.5,-7), BackgroundColor3 = Color3.new(1,1,1), Parent = tog})
+            local tStroke = create("UIStroke", {Color = COLORS.Outline, Thickness = 1.2, Parent = tog})
+            
+            local dot = create("Frame", {Size = UDim2.new(0,12,0,12), Position = enabled and UDim2.new(1,-15,0.5,-6) or UDim2.new(0,3,0.5,-6), BackgroundColor3 = Color3.new(1,1,1), Parent = tog})
             create("UICorner", {CornerRadius = UDim.new(1,0), Parent = dot})
 
             f.InputBegan:Connect(function(i)
                 if i.UserInputType == Enum.UserInputType.MouseButton1 then
                     enabled = not enabled
                     tween(tog, nil, {BackgroundColor3 = enabled and COLORS.ToggleOn or COLORS.ToggleOff})
-                    tween(dot, nil, {Position = enabled and UDim2.new(1,-17,0.5,-7) or UDim2.new(0,3,0.5,-7)})
+                    tween(dot, nil, {Position = enabled and UDim2.new(1,-15,0.5,-6) or UDim2.new(0,3,0.5,-6)})
+                    tween(tStroke, nil, {Color = enabled and COLORS.Accent or COLORS.Outline})
                     callback(enabled)
                 end
             end)
         end
 
-        -- Elements: Slider
+        -- Slider, Input, Dropdown same as before...
         function tab:Slider(text, min, max, default, callback)
             local f = create("Frame", {Size = UDim2.new(0.9,0,0,45), BackgroundColor3 = COLORS.Darker, Parent = frame})
             create("UICorner", {CornerRadius = UDim.new(0,6), Parent = f})
-            create("TextLabel", {Size = UDim2.new(1,-20,0,20), Position = UDim2.new(0,10,0,5), BackgroundTransparency = 1, Text = text, TextColor3 = COLORS.Text, Font = "Gotham", TextSize = 12, TextXAlignment = "Left", Parent = f})
-            
+            create("UIStroke", {Color = COLORS.Outline, Thickness = 1, Transparency = 0.7, Parent = f})
+            local label = create("TextLabel", {Size = UDim2.new(1,-20,0,20), Position = UDim2.new(0,10,0,5), BackgroundTransparency = 1, Text = text, TextColor3 = COLORS.Text, Font = "Gotham", TextSize = 12, TextXAlignment = "Left", Parent = f})
             local bar = create("Frame", {Size = UDim2.new(1,-20,0,5), Position = UDim2.new(0,10,0,30), BackgroundColor3 = COLORS.Bg, Parent = f})
             local fill = create("Frame", {Size = UDim2.new((default-min)/(max-min),0,1,0), BackgroundColor3 = COLORS.Accent, Parent = bar})
-            local valLabel = create("TextLabel", {Size = UDim2.new(0,30,0,20), Position = UDim2.new(1,-40,0,5), BackgroundTransparency = 1, Text = tostring(default), TextColor3 = COLORS.Accent, Font = "GothamBold", TextSize = 11, Parent = f})
-
             local dragging = false
             local function update()
                 local percent = math.clamp((UserInputService:GetMouseLocation().X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
                 local val = math.round(min + (max - min) * percent)
                 fill.Size = UDim2.new(percent, 0, 1, 0)
-                valLabel.Text = tostring(val)
                 callback(val)
             end
-
             bar.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true update() end end)
             UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
             RunService.RenderStepped:Connect(function() if dragging then update() end end)
         end
 
-        -- Elements: Input
         function tab:Input(text, placeholder, callback)
             local f = create("Frame", {Size = UDim2.new(0.9,0,0,36), BackgroundColor3 = COLORS.Darker, Parent = frame})
             create("UICorner", {CornerRadius = UDim.new(0,6), Parent = f})
-            create("TextLabel", {Size = UDim2.new(0.4,0,1,0), Position = UDim2.new(0,10,0,0), BackgroundTransparency = 1, Text = text, TextColor3 = COLORS.Text, Font = "Gotham", TextSize = 13, TextXAlignment = "Left", Parent = f})
-            
-            local box = create("TextBox", {
-                Size = UDim2.new(0.5,0,0,24), Position = UDim2.new(1,-10,0.5,0), AnchorPoint = Vector2.new(1,0.5),
-                BackgroundColor3 = COLORS.Bg, Text = "", PlaceholderText = placeholder,
-                TextColor3 = COLORS.Text, Font = "Gotham", TextSize = 12, Parent = f
-            })
+            local box = create("TextBox", {Size = UDim2.new(0.5,0,0,24), Position = UDim2.new(1,-10,0.5,0), AnchorPoint = Vector2.new(1,0.5), BackgroundColor3 = COLORS.Bg, Text = "", PlaceholderText = placeholder, TextColor3 = COLORS.Text, Font = "Gotham", TextSize = 12, Parent = f})
             create("UICorner", {CornerRadius = UDim.new(0,4), Parent = box})
             box.FocusLost:Connect(function(enter) if enter then callback(box.Text) end end)
         end
 
-        -- Elements: Dropdown
         function tab:Dropdown(text, list, callback)
             local open = false
             local f = create("Frame", {Size = UDim2.new(0.9,0,0,34), BackgroundColor3 = COLORS.Darker, ClipsDescendants = true, Parent = frame})
             create("UICorner", {CornerRadius = UDim.new(0,6), Parent = f})
             local btn = create("TextButton", {Size = UDim2.new(1,0,0,34), BackgroundTransparency = 1, Text = text.." : ...", TextColor3 = COLORS.Text, Font = "Gotham", TextSize = 12, Parent = f})
-            
             local container = create("Frame", {Size = UDim2.new(1,0,0,#list * 25), Position = UDim2.new(0,0,0,34), BackgroundTransparency = 1, Parent = f})
             create("UIListLayout", {Parent = container})
-
             for _, v in pairs(list) do
                 local opt = create("TextButton", {Size = UDim2.new(1,0,0,25), BackgroundTransparency = 1, Text = v, TextColor3 = COLORS.TextDim, Font = "Gotham", TextSize = 11, Parent = container})
                 opt.MouseButton1Click:Connect(function()
@@ -210,7 +214,6 @@ function Library:Create(name)
                     open = false
                 end)
             end
-
             btn.MouseButton1Click:Connect(function()
                 open = not open
                 tween(f, nil, {Size = open and UDim2.new(0.9,0,0,34 + container.Size.Y.Offset) or UDim2.new(0.9,0,0,34)})
