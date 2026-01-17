@@ -121,22 +121,16 @@ end
 
 local player = game.Players.LocalPlayer
 
-local function instantTP(targetCFrame)
-    if not canTeleport() then return end
-
-    local char = game.Players.LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
-    local oldVelocity = hrp.Velocity
-    hrp.Velocity = Vector3.new(0, 0, 0)
-    
-    hrp.CFrame = targetCFrame + Vector3.new(0, 3, 0)
-    task.wait(0.04)
-    hrp.Velocity = oldVelocity  -- restore natural fall
-    
-    task.wait(0.06)
-    hrp.CFrame = targetCFrame  -- snap exactly
+local function instantTP(cf)
+	local char = player.Character or player.CharacterAdded:Wait()
+	local root = char:FindFirstChild("HumanoidRootPart")
+	local hum = char:FindFirstChild("Humanoid")
+	if not root or not hum then return end
+	hum.Health = 100
+	root.Anchored = true
+	root.CFrame = cf + Vector3.new(0,1,0)
+	task.wait(0.05)
+	root.Anchored = false
 end
 
 local PrisonAPI = {
