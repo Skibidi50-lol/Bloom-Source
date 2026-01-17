@@ -1,11 +1,10 @@
 --[[
     BloomWare v1.4.7
     Game: Prison Life
-    Status: Stable / Detected / Undetected(ANTI KICK)
+    Status: Stable / Detected / Undetected
     
     Release Notes v1.4.7:
-    -FEATURES ADDED : Anti Kick (Good Exploits Only)
-    -Rewrite Chams
+    -FEATURES ADDED : Rewrite Chams
     -Silent Aim FOV Fixed
     -Make Tp Using Velocity
 ]]
@@ -1805,7 +1804,6 @@ local infoBox = Tabs.Info:AddLeftGroupbox("Script Information", "info")
 infoBox:AddLabel("[<font color=\"rgb(73, 230, 133)\">Update Note</font>]")
 infoBox:AddDivider()
 infoBox:AddLabel("Update 1.4.7")
-infoBox:AddLabel("[+] Anti Kick")
 infoBox:AddLabel("[+] Rewrite Chams")
 infoBox:AddLabel("[+] Silent Aim FOV Fixed")
 infoBox:AddLabel("[+] Make Tp Using Velocity")
