@@ -1,1 +1,1 @@
-game:GetService("Players").LocalPlayer:Kick("Down Forever!\nOr maybe?")
+print("down forever")
