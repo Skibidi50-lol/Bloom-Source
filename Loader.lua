@@ -3,9 +3,9 @@ local Scripts = {
     [130594398886540] = "https://raw.githubusercontent.com/Skibidi50-lol/Bloom-Source/refs/heads/main/scripts/GardenHorizons.lua",
 
     -- BasketBall legends
-    [4931927012] = "github.com/Skibidi50-lol/Bloom-Source/blob/main/scripts/BasketballLegends.lua",
+    [14259168147] = "github.com/Skibidi50-lol/Bloom-Source/blob/main/scripts/BasketballLegends.lua",
     -- Arsenal
-    [4931927012] = "github.com/Skibidi50-lol/Bloom-Source/blob/main/scripts/BasketballLegends.lua",
+    [286090429] = "github.com/Skibidi50-lol/Bloom-Source/blob/main/scripts/BasketballLegends.lua",
 }
 
 local ScriptURL = Scripts[game.PlaceId]
